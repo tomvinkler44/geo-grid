@@ -1,0 +1,23 @@
+{
+  "name": "geo-grid",
+  "version": "0.1.0",
+  "description": "Local SEO 5x5 geo-grid rank report generator (web UI + CLI)",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "cli": "node src/cli.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.9",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.2",
+    "pdf-lib": "^1.17.1"
+  }
+}

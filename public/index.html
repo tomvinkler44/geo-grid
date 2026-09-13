@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Geo-Grid Rank Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif; }
+    .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <header class="border-b bg-white">
+    <div class="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-slate-900 grid grid-cols-3 gap-0.5 p-1.5">
+          <span class="rounded-full bg-emerald-500"></span><span class="rounded-full bg-emerald-500"></span><span class="rounded-full bg-amber-400"></span>
+          <span class="rounded-full bg-emerald-500"></span><span class="rounded-full bg-emerald-400"></span><span class="rounded-full bg-amber-400"></span>
+          <span class="rounded-full bg-amber-400"></span><span class="rounded-full bg-red-500"></span><span class="rounded-full bg-red-500"></span>
+        </div>
+        <div>
+          <h1 class="font-semibold leading-tight">Geo-Grid Rank Report</h1>
+          <p class="text-xs text-slate-500">5 × 5 local ranking scan · outreach asset generator</p>
+        </div>
+      </div>
+      <div id="providerBadge" class="text-xs text-slate-500"></div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-5 py-8 grid gap-8 lg:grid-cols-[360px_1fr]">
+    <!-- Form -->
+    <section class="bg-white rounded-2xl border shadow-sm p-6 h-fit lg:sticky lg:top-6">
+      <form id="form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="business">Business name</label>
+          <input id="business" name="business" required placeholder="Pacific Coast Heating & AC"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="location">City, State (or zip)</label>
+          <input id="location" name="location" required placeholder="San Jose, CA"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="keyword">Target search keyword</label>
+          <input id="keyword" name="keyword" required placeholder="furnace repair near me"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="spacing">Grid spacing</label>
+          <select id="spacing" name="spacingMi" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="0.5" selected>0.5 miles (2 mi across) · dense urban</option>
+            <option value="1">1 mile (4 mi across) · suburban</option>
+            <option value="2">2 miles (8 mi across) · rural / wide service area</option>
+          </select>
+        </div>
+        <details class="text-sm">
+          <summary class="cursor-pointer text-slate-600">Advanced</summary>
+          <div class="mt-3 space-y-3">
+            <div>
+              <label class="block text-sm font-medium mb-1" for="coordinates">Listing coordinates override</label>
+              <input id="coordinates" name="coordinates" placeholder="37.3382, -121.8863"
+                     class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <p class="text-xs text-slate-500 mt-1">Skips listing lookup and centres the grid here. Paste from Google Maps.</p>
+            </div>
+            <label class="flex items-center gap-2"><input type="checkbox" id="scale1" /> Smaller image (1200px wide instead of 2400px)</label>
+          </div>
+        </details>
+
+        <label class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 cursor-pointer">
+          <input type="checkbox" id="mock" checked class="mt-0.5" />
+          <span class="text-sm">
+            <span class="font-medium">Mock mode</span>
+            <span id="mockHelp" class="block text-xs text-slate-600">Generates a realistic drop-off without using API credits.</span>
+          </span>
+        </label>
+
+        <button id="submit" type="submit"
+                class="w-full rounded-lg bg-slate-900 text-white font-medium py-2.5 hover:bg-slate-800 disabled:opacity-60 flex items-center justify-center gap-2">
+          <span id="btnText">Run Grid Audit</span>
+        </button>
+        <p id="error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"></p>
+      </form>
+    </section>
+
+    <!-- Results -->
+    <section id="results" class="space-y-6">
+      <div id="empty" class="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">
+        <p class="font-medium text-slate-700">Your report will appear here</p>
+        <p class="text-sm mt-1">Fill in the form and run an audit. Mock mode takes a few seconds.</p>
+      </div>
+
+      <div id="loading" class="hidden rounded-2xl border bg-white p-12 text-center">
+        <svg class="spin w-8 h-8 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+        <p id="loadingText" class="mt-4 text-slate-600 text-sm">Resolving listing…</p>
+      </div>
+
+      <div id="report" class="hidden space-y-6">
+        <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          <img id="reportImg" alt="Geo-grid rank report" class="w-full block" />
+          <div class="flex flex-wrap items-center gap-3 p-4 border-t bg-slate-50">
+            <a id="dlPng" download class="rounded-lg bg-slate-900 text-white text-sm font-medium px-4 py-2 hover:bg-slate-800">Download PNG</a>
+            <a id="dlPdf" download class="rounded-lg border border-slate-300 bg-white text-sm font-medium px-4 py-2 hover:bg-slate-100">Download PDF</a>
+            <a id="dlJson" download class="rounded-lg border border-slate-300 bg-white text-sm px-4 py-2 hover:bg-slate-100 text-slate-600">Raw data (JSON)</a>
+            <span id="meta" class="text-xs text-slate-500 ml-auto"></span>
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-3 gap-4">
+          <div class="bg-white rounded-2xl border p-5"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Average rank</p><p id="mAvg" class="text-3xl font-bold mt-1"></p><p class="text-xs text-slate-500 mt-1">20+ counted as 21</p></div>
+          <div class="bg-white rounded-2xl border p-5"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Top-3 share</p><p id="mTop3" class="text-3xl font-bold mt-1"></p><p id="mTop3Sub" class="text-xs text-slate-500 mt-1"></p></div>
+          <div class="bg-white rounded-2xl border p-5"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Top competitor</p><p id="mComp" class="text-lg font-bold mt-1 leading-tight"></p><p id="mCompSub" class="text-xs text-slate-500 mt-1"></p></div>
+        </div>
+
+        <div class="bg-white rounded-2xl border shadow-sm p-6 space-y-5">
+          <div class="flex items-center justify-between gap-4">
+            <h2 class="font-semibold text-lg">Client takeaway</h2>
+            <button id="copyEmail" class="rounded-lg bg-emerald-600 text-white text-sm font-medium px-4 py-2 hover:bg-emerald-700">Copy Email Summary</button>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-emerald-600 mb-1">The Good</h3>
+            <p id="tGood" class="text-sm text-slate-700 leading-relaxed"></p>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-red-600 mb-1">The Revenue Leak</h3>
+            <p id="tLeak" class="text-sm text-slate-700 leading-relaxed"></p>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-amber-600 mb-1">The Competitive Context</h3>
+            <p id="tContext" class="text-sm text-slate-700 leading-relaxed"></p>
+          </div>
+          <details>
+            <summary class="text-sm text-slate-600 cursor-pointer">Preview full email</summary>
+            <textarea id="emailText" readonly class="mt-3 w-full h-72 text-sm rounded-lg border border-slate-300 p-3 font-mono bg-slate-50"></textarea>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { cfg: null, last: null };
+
+    fetch('/api/config').then((r) => r.json()).then((cfg) => {
+      state.cfg = cfg;
+      const live = cfg.liveReady ? `${cfg.rankProvider} ready` : `${cfg.rankProvider === 'mock' ? 'no live provider configured' : cfg.rankProvider + ' (missing credentials)'}`;
+      $('providerBadge').textContent = `Ranks: ${live} · Map: ${cfg.mapProvider}${cfg.placesReady ? ' · Places ✓' : ''}`;
+      if (!cfg.liveReady) {
+        $('mock').checked = true;
+        $('mockHelp').textContent = 'No live rank provider is configured in .env, so mock mode is required.';
+        $('mock').disabled = true;
+      } else {
+        $('mockHelp').textContent = `Uncheck to run 25 real lookups via ${cfg.rankProvider}.`;
+      }
+    }).catch(() => {});
+
+    const loadingMsgs = ['Resolving listing…', 'Building the 5 × 5 grid…', 'Checking rankings at 25 points…', 'Stitching the map…', 'Rendering report card…'];
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        business: $('business').value,
+        location: $('location').value,
+        keyword: $('keyword').value,
+        spacingMi: Number($('spacing').value),
+        mock: $('mock').checked,
+        coordinates: $('coordinates').value || undefined,
+        scale: $('scale1').checked ? 1 : 2,
+      };
+      $('error').classList.add('hidden');
+      $('empty').classList.add('hidden');
+      $('report').classList.add('hidden');
+      $('loading').classList.remove('hidden');
+      $('submit').disabled = true;
+      $('btnText').textContent = 'Running…';
+      let i = 0;
+      $('loadingText').textContent = loadingMsgs[0];
+      const ticker = setInterval(() => { i = Math.min(i + 1, loadingMsgs.length - 1); $('loadingText').textContent = loadingMsgs[i]; }, body.mock ? 900 : 4000);
+      try {
+        const res = await fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        render(data);
+      } catch (err) {
+        $('error').textContent = err.message;
+        $('error').classList.remove('hidden');
+        $('empty').classList.remove('hidden');
+      } finally {
+        clearInterval(ticker);
+        $('loading').classList.add('hidden');
+        $('submit').disabled = false;
+        $('btnText').textContent = 'Run Grid Audit';
+      }
+    });
+
+    function render(data) {
+      state.last = data;
+      const { report, takeaway } = data;
+      const m = report.metrics;
+      $('reportImg').src = data.imageUrl;
+      $('dlPng').href = data.imageUrl;
+      $('dlPdf').href = data.pdfUrl || '#';
+      $('dlPdf').classList.toggle('hidden', !data.pdfUrl);
+      $('dlJson').href = data.jsonUrl;
+      const bm = report.basemap || {};
+      $('meta').textContent = `${report.provider} ranks · ${bm.offline ? 'offline basemap' : bm.provider + ' basemap'} · ${(data.elapsedMs / 1000).toFixed(1)}s` + (bm.error ? ` · map error: ${bm.error}` : '');
+      $('mAvg').textContent = m.averageRank.toFixed(1);
+      $('mAvg').className = 'text-3xl font-bold mt-1 ' + (m.averageRank <= 3 ? 'text-emerald-500' : m.averageRank < 10 ? 'text-amber-500' : 'text-red-500');
+      $('mTop3').textContent = Math.round(m.top3Share * 100) + '%';
+      $('mTop3Sub').textContent = `${m.top3Count} of ${report.points.length} points · invisible at ${m.invisibleCount}`;
+      $('mComp').textContent = m.topCompetitor ? m.topCompetitor.name : 'None';
+      $('mCompSub').textContent = m.topCompetitor ? `#1 at ${m.topCompetitor.wins} of the ${m.notTop3Count} points you don't win` : 'You hold the Map Pack everywhere';
+      $('tGood').textContent = takeaway.good;
+      $('tLeak').textContent = takeaway.leak;
+      $('tContext').textContent = takeaway.context;
+      $('emailText').value = takeaway.email;
+      $('report').classList.remove('hidden');
+      $('report').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    $('copyEmail').addEventListener('click', async () => {
+      if (!state.last) return;
+      const btn = $('copyEmail');
+      try {
+        await navigator.clipboard.writeText(state.last.takeaway.email);
+        btn.textContent = 'Copied ✓';
+      } catch {
+        $('emailText').closest('details').open = true;
+        $('emailText').select();
+        document.execCommand('copy');
+        btn.textContent = 'Copied ✓';
+      }
+      setTimeout(() => (btn.textContent = 'Copy Email Summary'), 1800);
+    });
+  </script>
+</body>
+</html>
