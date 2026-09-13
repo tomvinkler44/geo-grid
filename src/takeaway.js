@@ -99,6 +99,11 @@ export function generateTakeaway(report) {
   const subject = red.length
     ? `${name}: you're invisible for "${keyword}" ${fmtMi(leaks[0]?.nearestMi ?? spacingMi)} mi from your shop`
     : `${name}: your "${keyword}" map rankings (5×5 scan)`;
+  const rivals = (report.businesses || []).slice(1);
+  const rivalLine = rivals.length
+    ? `For comparison, on the same 25 points: ${rivals.map((r) => `${r.name} is in the top 3 at ${r.metrics.top3Count}`).join(', and ')}${rivals.length ? ` — against your ${metrics.top3Count}` : ''}.`
+    : '';
+
   const email = [
     `Subject: ${subject}`,
     ``,
@@ -111,6 +116,7 @@ export function generateTakeaway(report) {
     `The problem: ${leak}`,
     ``,
     `Who's getting those calls: ${context}`,
+    ...(rivalLine ? [``, rivalLine] : []),
     ``,
     `Quick summary: average rank ${avg} across the 25 points, in the top 3 at ${pct(metrics.top3Share)} of them, invisible at ${pct(red.length / n)}.`,
     ``,
@@ -120,7 +126,49 @@ export function generateTakeaway(report) {
     `[Your name]`,
   ].join('\n');
 
-  return { good, leak, context, subject, email };
+  return { good, leak, context, subject, email, compare: compareBlock(report, { radius, red, green, leaks }) };
+}
+
+/**
+ * Short copy for the three-panel sheet. The long prose above is written for an
+ * email; these have to fit in a 300px column, so they say one thing each.
+ */
+function compareBlock(report, { radius, red, green, leaks }) {
+  const businesses = report.businesses || [];
+  const lead = businesses[0];
+  const rivals = businesses.slice(1);
+  const n = report.points.length;
+  const m = report.metrics;
+
+  let good;
+  if (green.length === 0) {
+    good = `${report.business.name} is not in the top 3 anywhere on this grid, including at its own address.`;
+  } else if (radius > 0) {
+    good = `You hold the Map Pack at ${plural(green.length, 'point')} out of ${n}, reaching about ${fmtMi(radius)} ${radius === 1 ? 'mile' : 'miles'} from your front door.`;
+  } else {
+    good = `You reach the Map Pack at ${plural(green.length, 'point')} out of ${n}, though not at your own address.`;
+  }
+
+  let leak;
+  if (red.length === 0) {
+    leak = `You are visible everywhere on the grid, but only ${pct(m.top3Share)} of it puts you in the top 3 where the calls actually happen.`;
+  } else {
+    const g = leaks[0];
+    const where = g ? `${fmtMi(g.nearestMi)} ${g.nearestMi === 1 ? 'mile' : 'miles'} ${bearingPhrase(g.bearing)}` : 'just outside the centre';
+    leak = `At ${plural(red.length, 'point')} (${pct(red.length / n)} of the area) you do not appear at all. It starts ${where} of you.`;
+  }
+
+  let context;
+  if (!rivals.length) {
+    context = 'No competitor is consistently ahead of you across this grid.';
+  } else {
+    const parts = rivals.map((r) => `${r.name} holds the top 3 at ${r.metrics.top3Count} of ${n} points`);
+    const ratio = rivals[0].metrics.top3Count && lead.metrics.top3Count
+      ? ` That is ${(rivals[0].metrics.top3Count / Math.max(1, lead.metrics.top3Count)).toFixed(1)}× your coverage.`
+      : '';
+    context = `${parts.join('; ')}.${ratio}`;
+  }
+  return { good, leak, context };
 }
 
 function firstWord(name) {

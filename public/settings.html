@@ -77,8 +77,12 @@
           </select>
         </label>
         <p class="text-sm text-slate-600">If the map you pick stops working, the app automatically
-        falls back to another one rather than producing a broken report. Click <b>Check setup</b>
-        above to see which one is actually being used.</p>
+        falls back to another one rather than producing a broken report.</p>
+        <div class="flex items-center gap-3">
+          <button id="mapTest" type="button" class="rounded-lg border border-slate-300 bg-white text-sm font-medium px-4 py-2 hover:bg-slate-100">Test every map service</button>
+          <span class="text-xs text-slate-500">Tries each one from this computer and tells you which work.</span>
+        </div>
+        <ul id="mapResults" class="space-y-2 text-sm"></ul>
         <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-slate-700">
           <b>About OpenStreetMap standard tiles.</b> They come from donated, volunteer-run servers.
           Their usage policy does not cover bulk or commercial use, and they block apps that ignore
@@ -141,6 +145,20 @@
       if (!res.ok) { status.textContent = 'Error: ' + data.error; return; }
       for (const [k, v] of Object.entries(data)) if (form[k]) form[k].value = v;
       status.textContent = 'Saved. Click "Check setup" to test it.';
+    });
+
+    document.getElementById('mapTest').addEventListener('click', async () => {
+      const ul = document.getElementById('mapResults');
+      ul.innerHTML = '<li class="text-slate-500">Testing each map service…</li>';
+      const res = await fetch('/api/map-test');
+      const data = await res.json();
+      if (!res.ok) { ul.innerHTML = `<li class="text-red-600">${data.error}</li>`; return; }
+      ul.innerHTML = data.results.map((r) => {
+        const icon = r.ok === true ? '✅' : r.ok === false ? '❌' : '➖';
+        const note = r.manualOnly && r.ok ? ' <span class="text-amber-700">(works, but its policy does not cover commercial use)</span>' : '';
+        const inUse = r.name === data.current ? ' <span class="text-slate-500">— currently selected</span>' : '';
+        return `<li class="flex gap-2"><span>${icon}</span><span><span class="font-medium">${r.label}</span>${inUse} <span class="text-slate-600">– ${r.detail}</span>${note}</span></li>`;
+      }).join('');
     });
 
     document.getElementById('check').addEventListener('click', async () => {

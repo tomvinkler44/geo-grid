@@ -5,7 +5,7 @@ import { config } from './config.js';
 import { generateReport } from './report.js';
 import { SPACING_OPTIONS } from './audit.js';
 import { loadSettings, readSettings, saveSettings, liveReady } from './settings.js';
-import { runHealthCheck } from './healthcheck.js';
+import { runHealthCheck, testMapProviders } from './healthcheck.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 await loadSettings();
@@ -60,13 +60,31 @@ app.get('/api/health-check', async (_req, res) => {
   }
 });
 
+app.get('/api/map-test', async (_req, res) => {
+  try {
+    res.json(await testMapProviders());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/audit', async (req, res) => {
-  const { business, location, keyword, spacingMi, mock, coordinates, scale } = req.body || {};
+  const { business, location, address, keyword, spacingMi, mock, coordinates, scale, competitor1, competitor2 } = req.body || {};
   const started = Date.now();
   try {
     const useMock = mock !== false || !liveReady();
     const result = await generateReport(
-      { business, location, keyword, spacingMi: Number(spacingMi ?? 0.5), mock: useMock, coordinates, onProgress: (m) => console.log(`[audit] ${m}`) },
+      {
+        business,
+        location,
+        address,
+        keyword,
+        spacingMi: Number(spacingMi ?? 0.5),
+        competitors: [competitor1, competitor2],
+        mock: useMock,
+        coordinates,
+        onProgress: (m) => console.log(`[audit] ${m}`),
+      },
       { scale: scale === 1 ? 1 : 2 },
     );
     const { id, report, takeaway, files } = result;
@@ -74,6 +92,7 @@ app.post('/api/audit', async (req, res) => {
       id,
       elapsedMs: Date.now() - started,
       imageUrl: `/reports/${path.basename(files.png)}`,
+      detailImageUrl: `/reports/${path.basename(files.detailPng)}`,
       pdfUrl: files.pdf ? `/reports/${path.basename(files.pdf)}` : null,
       jsonUrl: `/reports/${path.basename(files.json)}`,
       report,

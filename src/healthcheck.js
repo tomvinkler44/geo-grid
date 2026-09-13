@@ -4,7 +4,7 @@
  */
 import { config } from './config.js';
 import { geocode } from './providers/geocode.js';
-import { renderBasemap, TILE_PROVIDERS } from './basemap.js';
+import { renderBasemap, renderWithProvider, TILE_PROVIDERS, resetBlockedProviders } from './basemap.js';
 import { getProvider } from './providers/index.js';
 import { resolveWithPlaces } from './providers/places.js';
 import { liveReady } from './settings.js';
@@ -69,4 +69,30 @@ export async function runHealthCheck() {
 
   const failed = checks.filter((c) => c.ok === false).length;
   return { ok: failed === 0, liveReady: liveReady(), checks };
+}
+
+
+/**
+ * Try each map service on its own and report which ones actually return a
+ * usable map from this machine. Networks, VPNs and provider policies differ,
+ * so the only reliable answer is an empirical one.
+ */
+export async function testMapProviders() {
+  resetBlockedProviders();
+  const args = { lat: TEST.lat, lng: TEST.lng, width: 384, height: 384, zoomFrac: 13.5 };
+  const names = [...Object.keys(TILE_PROVIDERS), ...(config.mapboxToken ? ['mapbox'] : [])];
+  const results = await Promise.all(names.map(async (name) => {
+    const p = TILE_PROVIDERS[name];
+    const started = Date.now();
+    try {
+      await renderWithProvider(name, args);
+      return { name, label: p?.label || 'Mapbox', ok: true, detail: 'Returned a usable map', ms: Date.now() - started, manualOnly: !!p?.manualOnly };
+    } catch (err) {
+      return { name, label: p?.label || 'Mapbox', ok: false, detail: err.message, ms: Date.now() - started, manualOnly: !!p?.manualOnly };
+    }
+  }));
+  if (!config.mapboxToken) {
+    results.push({ name: 'mapbox', label: 'Mapbox', ok: null, detail: 'No token saved. Its free tier covers about 50,000 report images a month and its terms cover commercial use.' });
+  }
+  return { current: config.mapProvider, results };
 }

@@ -1,8 +1,12 @@
 # Geo-Grid Rank Report
 
-Generates a 5 × 5 (25-point) local SEO geo-grid ranking report for a business and turns it
-into an outreach asset: a crisp PNG/PDF report card plus a plain-English "client takeaway"
-you can paste into an email.
+Generates a 5 × 5 (25-point) local SEO geo-grid ranking report and turns it into an outreach
+asset: a three-panel comparison sheet putting the business beside two rivals, a detailed grid
+of its own, and a plain-English "client takeaway" you can paste into an email.
+
+**One scan, three panels.** A local-pack lookup at a grid point returns the whole pack, so the
+lead business and both rivals are read out of the *same* 25 calls. The comparison sheet costs
+exactly what a single-business audit costs.
 
 ![example](docs/example.png)
 
@@ -19,8 +23,21 @@ cp .env.example .env        # defaults to mock ranks + OpenStreetMap basemap, no
 npm start                   # http://localhost:3000
 ```
 
-Fill in the form, leave **Mock mode** checked, hit **Run Grid Audit**. You get the report
-card, the metrics, the takeaway text, a *Copy Email Summary* button and PNG/PDF downloads.
+Fill in the composer, leave **Mock mode** checked, hit **Run Grid Audit**. You get the
+comparison sheet, your own detailed grid, the scoreboard, the takeaway text, a
+*Copy Email Summary* button and PNG/PDF downloads.
+
+### The composer
+
+| Section | Fields |
+| --- | --- |
+| **A · The business** | Name, City/State (or zip), optional street address. The address is used to pin the exact listing when several share a name. |
+| **B · Competitors** | Two optional names. Leave them blank and the two businesses holding the most ground across your 25 points are picked automatically. |
+| **C · Parameters** | Keyword, grid spacing (0.5 / 1 / 2 miles), and an advanced `lat,lng` override. |
+
+Websites, ratings, review counts and primary categories are pulled in while the listings are
+resolved, and fill the side-by-side table. Anything a provider does not return shows as `—`
+rather than being invented.
 
 API keys can go in `.env` **or** in the in-app **Settings** page (saved to `data/settings.json`,
 which overrides `.env`). **Settings → Check setup** runs one test call per configured service.
@@ -37,9 +54,10 @@ blueprint generates an `APP_PASSWORD` for you.
 node src/cli.js --business "Pacific Coast Heating & AC" --location "San Jose, CA" \
   --keyword "furnace repair near me" --spacing 0.5 --mock
 
-# use the live provider from .env, wider grid, skip the PDF
-node src/cli.js -b "Pacific Coast Heating & AC" -l "San Jose, CA" -k "furnace repair near me" \
-  --spacing 1 --live --no-pdf
+# name the rivals yourself, pin the listing with a street address
+node src/cli.js -b "Pacific Coast Assisted Living" -l "Sunnyvale, CA" -a "1250 Elm St" \
+  -k "assisted living sunnyvale" --live \
+  --competitor "Sunrise Senior Living of Sunnyvale" --competitor "The Terraces of Los Altos"
 
 # fully offline (no tiles, no geocoding): give the coordinates and the procedural basemap
 node src/cli.js -b "Test HVAC" -l "San Jose, CA" -k "ac repair" -c "37.3382,-121.8863" --map none --mock
@@ -63,9 +81,13 @@ The email-ready takeaway prints to stdout; progress and file paths go to stderr,
    out rather than counting as a failure.
 2. **Build the grid.** `src/geometry.js` lays out 25 points on a spherical-earth offset,
    centred on the listing (index 12 = `[2,2]`), at 0.5 / 1 / 2 mile spacing.
-3. **Rank each point.** Every point runs a Google Maps search *from that coordinate* and the
-   business is located in the results by Place ID / CID, falling back to fuzzy title match.
-   Rank `null` means not in the top 20 and renders as **20+**.
+3. **Rank each point.** Every point runs one Google Maps search *from that coordinate*, and the
+   top 20 results are kept. Each of the three businesses is then located in that same list by
+   Place ID / CID, falling back to fuzzy title match. Rank `null` means not in the top 20 and
+   renders as **20+**.
+
+   If competitors were not named, `rankRivals` scores every business seen anywhere on the grid
+   by Σ(21 − rank) — which rewards ranking well *and* often — and takes the top two.
 4. **Metrics + takeaway.** Average rank (20+ counts as 21), Top-3 share, and the competitor
    that most often holds #1 where you are not in the Map Pack. `src/takeaway.js` turns the
    grid into "The Good / The Revenue Leak / The Competitive Context" using distances and
@@ -81,7 +103,7 @@ The email-ready takeaway prints to stdout; progress and file paths go to stderr,
 
 | `RANK_PROVIDER` | Needs | Notes |
 | --- | --- | --- |
-| `mock` (default) | nothing | Deterministic per business + keyword. Center green, fades to amber/red, one "weak side" with a dominant competitor so the takeaway reads realistically. |
+| `mock` (default) | nothing | Deterministic per business + keyword. Builds a market of ~27 businesses, then *calibrates* their strengths so the three panels land on "Scenario A": the lead holds about 6 green pins with a red outer edge, while the two rivals hold about 18 and 15. That is the shape the sheet exists to show, so the layout is always tested against it. Typed competitor names are ignored in mock mode — a real company's name on invented numbers would be misleading. |
 | `dataforseo` | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | `serp/google/maps/live/advanced` with `location_coordinate = "lat,lng,15z"`. 25 tasks per audit. |
 | `serpapi` | `SERPAPI_KEY` | `engine=google_maps` with `ll=@lat,lng,15z`. 25 searches per audit. |
 
@@ -129,7 +151,9 @@ src/audit.js         orchestration + metrics
 src/geometry.js      grid math
 src/mercator.js      Web Mercator helpers
 src/basemap.js       tile stitching / Mapbox static / offline fallback
-src/render.js        report card renderer (canvas)
+src/render.js        detail grid renderer (canvas)
+src/render-compare.js three-panel comparison sheet
+src/draw.js          shared canvas primitives and palette
 src/takeaway.js      plain-English copy generator
 src/pdf.js           PDF export
 src/providers/       mock, dataforseo, serpapi, places (resolution), geocode, match

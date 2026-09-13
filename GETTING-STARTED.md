@@ -72,17 +72,35 @@ much faster the second time.
 
 ## Step 4 — Make your first report (1 minute)
 
-In the browser window that opened:
+In the browser window that opened, fill in the composer on the left. It has
+three short sections.
 
-1. Type a business name, for example `Pacific Coast Heating & AC`.
-2. Type a city and state, for example `San Jose, CA`.
-3. Type a search phrase, for example `furnace repair near me`.
-4. Leave **Mock mode** ticked. This uses made-up sample rankings so you can see
-   how everything looks without paying anything.
-5. Click **Run Grid Audit** and wait a few seconds.
+**A — the business you are pitching**
 
-You get the report picture, the numbers underneath, the written client summary,
-and buttons to download a PNG or PDF and to copy the email text.
+1. Business name, for example `Pacific Coast Assisted Living`.
+2. City and state, for example `Sunnyvale, CA`.
+3. Street address is optional. Fill it in when several businesses nearby have
+   similar names, so the right one is picked.
+
+**B — competitors (you can skip this)**
+
+Leave both boxes empty and the app picks the two rivals that dominate the most
+of the map. Fill them in if you already know who the client keeps losing to.
+
+**C — the search**
+
+4. The search phrase, for example `assisted living sunnyvale`.
+5. Leave the spacing on 0.5 miles.
+6. Leave **Mock mode** ticked. This invents sample rankings so you can see how
+   everything looks without paying anything.
+7. Click **Run Grid Audit** and wait a few seconds.
+
+You get a comparison sheet showing the business beside its two rivals, a tab for
+its own detailed grid, the numbers underneath, the written client summary, and
+buttons to download the images, a PDF, and the email text.
+
+The comparison sheet is the one to attach to an email. It makes the point on its
+own: your client's grid is mostly orange and red, theirs is mostly green.
 
 Make two or three of these to get a feel for it. They cost nothing.
 
@@ -127,6 +145,12 @@ switches to a different map service by itself. If you still see it, open
 No map service could be reached at all. Check your internet connection, and turn
 off any VPN. The yellow bar above the report names exactly which services were
 tried and what each one said.
+
+**The map says something about an API key.**
+Some map services now want you to sign up. Open **⚙ Settings**, go to section 3,
+and click **Test every map service**. It tries each one from your computer and
+shows you which actually work, so you can pick one with a green tick. If none
+work, a free Mapbox token takes two minutes and there is a link on that page.
 
 **It says "We could not find that location".**
 The app tries three independent address-lookup services before giving up, so
