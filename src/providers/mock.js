@@ -2,7 +2,7 @@
  * MOCK provider – produces a realistic proximity drop-off without spending
  * API credits. Deterministic per business name + keyword so re-runs match.
  */
-import { geocode } from './geocode.js';
+import { geocode, geocodeBusiness } from './geocode.js';
 import { haversineMi, offsetLatLng } from '../geometry.js';
 
 function seedFrom(str) {
@@ -44,14 +44,12 @@ export const mockProvider = {
   name: 'mock',
 
   async resolveBusiness({ name, location }) {
-    let geo;
-    try {
-      geo = await geocode(`${name}, ${location}`);
-      // Nominatim will happily return the city centroid for unknown businesses;
-      // that is fine for a mock run.
-    } catch {
-      geo = await geocode(location);
-    }
+    // The city always resolves; the business name is a bonus. If a geocoder
+    // knows the business and it sits near the city, centre on it, otherwise
+    // fall back to the city centre.
+    const city = await geocode(location);
+    const exact = await geocodeBusiness(name, location, city);
+    const geo = exact || city;
     const seed = seedFrom(name.toLowerCase());
     return {
       name,
@@ -59,8 +57,9 @@ export const mockProvider = {
       lng: geo.lng,
       placeId: `mock_${seed.toString(36)}`,
       cid: String(seed),
-      address: geo.displayName,
-      city: geo.city || location,
+      address: exact ? geo.displayName : `${city.displayName} (approximate — city centre)`,
+      city: city.city || location,
+      approximate: !exact,
       source: 'mock',
     };
   },

@@ -59,6 +59,99 @@ function formatDate(d) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+/** Miles rendered without a trailing ".0" ("2 mi", "0.5 mi", "1.5 mi"). */
+function miLabel(mi) {
+  return `${Number(mi.toFixed(2)).toString()} mi`;
+}
+
+/** A white chip behind text so map detail never fights the label. */
+function chip(ctx, text, x, y, { align = 'left', padX = 9, padY = 6, font } = {}) {
+  if (font) ctx.font = font;
+  const w = ctx.measureText(text).width + padX * 2;
+  const h = 16 + padY * 2;
+  const left = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  roundRect(ctx, left, y, w, h, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(15,23,42,0.10)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = COLORS.ink;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, left + padX, y + h / 2);
+  ctx.textBaseline = 'alphabetic';
+  return { left, width: w, height: h };
+}
+
+/** Standard map scale bar. `pxPerMile` comes from the real projection. */
+function drawScaleBar(ctx, x, y, pxPerMile) {
+  const NICE = [0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 50];
+  let best = NICE[0];
+  for (const d of NICE) {
+    const px = d * pxPerMile;
+    if (px <= 200) best = d;
+    if (px > 200) break;
+  }
+  const barPx = Math.max(34, best * pxPerMile);
+  const label = miLabel(best);
+  ctx.font = `600 12px ${FONT}`;
+  const boxW = Math.max(barPx, ctx.measureText(label).width) + 22;
+  const boxH = 40;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  roundRect(ctx, x, y, boxW, boxH, 7);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(15,23,42,0.10)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const bx = x + 11;
+  const by = y + 26;
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(bx, by - 5);
+  ctx.lineTo(bx, by);
+  ctx.lineTo(bx + barPx, by);
+  ctx.lineTo(bx + barPx, by - 5);
+  ctx.stroke();
+  // half-way tick
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(bx + barPx / 2, by - 3);
+  ctx.lineTo(bx + barPx / 2, by);
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `600 12px ${FONT}`;
+  ctx.fillText(label, bx, y + 16);
+  return boxW;
+}
+
+/** Small north arrow so the compass wording in the takeaway lines up. */
+function drawNorthArrow(ctx, cx, cy) {
+  const rad = 17;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(15,23,42,0.10)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = COLORS.ink;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 10);
+  ctx.lineTo(cx + 5, cy + 3);
+  ctx.lineTo(cx, cy - 0.5);
+  ctx.lineTo(cx - 5, cy + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = `bold 9px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('N', cx, cy + 13);
+  ctx.textAlign = 'left';
+}
+
 /**
  * @param {object} report  output of runAudit (business, keyword, spacingMi, points, metrics)
  * @param {object} [opts]
@@ -145,6 +238,26 @@ export async function renderReport(report, opts = {}) {
     const d = basemap.project(p.lat, p.lng);
     return { x: M + d.x / scale, y: mapY + d.y / scale };
   };
+  // Bounds of the scanned square, in page pixels.
+  const gx = points.map((p) => toPage(p).x);
+  const gy = points.map((p) => toPage(p).y);
+  const gridBox = {
+    left: Math.min(...gx), right: Math.max(...gx),
+    top: Math.min(...gy), bottom: Math.max(...gy),
+  };
+  const pxPerMile = Math.abs(toPage(points[13]).x - toPage(points[12]).x) / spacingMi;
+
+  // Outline of the area covered. Drawn first so the badges sit on top of it.
+  ctx.save();
+  ctx.setLineDash([9, 7]);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.strokeRect(gridBox.left, gridBox.top, gridBox.right - gridBox.left, gridBox.bottom - gridBox.top);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(15,23,42,0.38)';
+  ctx.strokeRect(gridBox.left, gridBox.top, gridBox.right - gridBox.left, gridBox.bottom - gridBox.top);
+  ctx.restore();
+
   for (const p of points) {
     const { x, y } = toPage(p);
     ctx.save();
@@ -176,6 +289,31 @@ export async function renderReport(report, opts = {}) {
     ctx.fillText(label, x, y + 1);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+  }
+
+  // ---- Area legend: how much ground the grid actually covers --------------
+  {
+    const { left, right, bottom } = gridBox;
+    const heightMi = (bottom - gridBox.top) / pxPerMile;
+
+    // Dimension bracket under the bottom row.
+    const dy = Math.min(bottom + r + 30, mapY + mapH - 46);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(15,23,42,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(left, dy - 7); ctx.lineTo(left, dy + 7);
+    ctx.moveTo(right, dy - 7); ctx.lineTo(right, dy + 7);
+    ctx.moveTo(left, dy); ctx.lineTo(right, dy);
+    ctx.stroke();
+    ctx.restore();
+
+    const areaText = `${miLabel(extentMi)} × ${miLabel(heightMi)} area scanned`;
+    ctx.font = `600 13px ${FONT}`;
+    chip(ctx, areaText, (left + right) / 2, dy - 14, { align: 'center' });
+
+    drawScaleBar(ctx, M + 16, mapY + 16, pxPerMile);
+    drawNorthArrow(ctx, M + mapW - 32, mapY + 32);
   }
 
   // Attribution chip (bottom-right of map)
@@ -261,7 +399,8 @@ export async function renderReport(report, opts = {}) {
   ctx.fillStyle = COLORS.muted;
   ctx.font = `400 14px ${FONT}`;
   ctx.fillText(
-    `Each number is where this business appears in Google Maps for “${keyword}” when searched from that exact spot. Points are ${spacingMi} mi apart.`,
+    `Each number is where this business appears in Google Maps for “${keyword}” when searched from that exact spot. ` +
+    `25 points, ${spacingMi} mi apart, covering ${miLabel(extentMi)} × ${miLabel(extentMi)} (${Number((extentMi * extentMi).toFixed(1))} sq mi).`,
     M,
     legendY + 46,
   );

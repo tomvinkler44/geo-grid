@@ -121,11 +121,15 @@ Right-click the file, choose **Open With**, then **Terminal**.
 The map images could not be downloaded. Check your internet connection, then in
 Settings section 3 try switching the basemap to **CARTO light**.
 
-**It says "Could not geocode".**
-Write the location as city and state with a comma, like `San Jose, CA`. If it
-still fails, open Google Maps, right-click the business, click the numbers at
-the top of the menu to copy them, and paste them into **Advanced → Listing
-coordinates** in the app.
+**It says "We could not find that location".**
+The app tries three independent address-lookup services before giving up, so
+this usually means your internet connection dropped, or a VPN is making those
+services refuse you. Turn the VPN off and try again.
+
+The guaranteed way past it: open Google Maps, right-click the business, and
+click the row of numbers at the top of the menu. That copies its coordinates.
+Paste them into **Advanced → Listing coordinates** in the app. The app opens
+that box for you automatically when a lookup fails.
 
 **Anything else.**
 Click **⚙ Settings**, then **Check setup**. It tests each piece and tells you

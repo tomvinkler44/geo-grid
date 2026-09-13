@@ -56,13 +56,13 @@
           </select>
         </div>
         <details class="text-sm">
-          <summary class="cursor-pointer text-slate-600">Advanced</summary>
+          <summary class="cursor-pointer text-slate-600">Advanced &middot; paste exact coordinates</summary>
           <div class="mt-3 space-y-3">
             <div>
-              <label class="block text-sm font-medium mb-1" for="coordinates">Listing coordinates override</label>
+              <label class="block text-sm font-medium mb-1" for="coordinates">Listing coordinates</label>
               <input id="coordinates" name="coordinates" placeholder="37.3382, -121.8863"
                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              <p class="text-xs text-slate-500 mt-1">Skips listing lookup and centres the grid here. Paste from Google Maps.</p>
+              <p class="text-xs text-slate-500 mt-1">Skips the address lookup and centres the grid exactly here. In Google Maps, right-click the business and click the numbers at the top of the menu to copy them.</p>
             </div>
             <label class="flex items-center gap-2"><input type="checkbox" id="scale1" /> Smaller image (1200px wide instead of 2400px)</label>
           </div>
@@ -80,7 +80,10 @@
                 class="w-full rounded-lg bg-slate-900 text-white font-medium py-2.5 hover:bg-slate-800 disabled:opacity-60 flex items-center justify-center gap-2">
           <span id="btnText">Run Grid Audit</span>
         </button>
-        <p id="error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"></p>
+        <div id="error" class="hidden text-sm bg-red-50 border border-red-200 rounded-lg p-3">
+          <p class="font-semibold text-red-700 mb-1" id="errorTitle">That did not work</p>
+          <p class="text-red-700" id="errorBody"></p>
+        </div>
       </form>
     </section>
 
@@ -184,8 +187,7 @@
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         render(data);
       } catch (err) {
-        $('error').textContent = err.message;
-        $('error').classList.remove('hidden');
+        showError(err.message);
         $('empty').classList.remove('hidden');
       } finally {
         clearInterval(ticker);
@@ -194,6 +196,24 @@
         $('btnText').textContent = 'Run Grid Audit';
       }
     });
+
+    function showError(message) {
+      var isLookup = /could not find|geocode|lookup service/i.test(message);
+      $('errorTitle').textContent = isLookup
+        ? 'We could not find that location'
+        : 'That did not work';
+      $('errorBody').textContent = message;
+      $('error').classList.remove('hidden');
+      if (isLookup) {
+        // Open Advanced and put the cursor in the coordinates box, which is
+        // the guaranteed way past a failed address lookup.
+        var adv = $('coordinates').closest('details');
+        if (adv) adv.open = true;
+        $('coordinates').classList.add('ring-2', 'ring-red-400');
+        $('coordinates').focus();
+        setTimeout(function () { $('coordinates').classList.remove('ring-2', 'ring-red-400'); }, 4000);
+      }
+    }
 
     function render(data) {
       state.last = data;

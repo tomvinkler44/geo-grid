@@ -39,9 +39,9 @@ export async function runHealthCheck() {
     return `${config.mapProvider === 'carto' ? 'CARTO' : 'OpenStreetMap'} tiles reachable`;
   }));
 
-  checks.push(await check('Address lookup (Nominatim)', async () => {
+  checks.push(await check('Address lookup', async () => {
     const g = await geocode(TEST.location);
-    return `"${TEST.location}" → ${g.lat.toFixed(3)}, ${g.lng.toFixed(3)}`;
+    return `"${TEST.location}" → ${g.lat.toFixed(3)}, ${g.lng.toFixed(3)} (answered by ${g.source})`;
   }));
 
   if (config.googlePlacesKey) {

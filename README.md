@@ -53,8 +53,14 @@ The email-ready takeaway prints to stdout; progress and file paths go to stderr,
 
 1. **Resolve the listing.** With `GOOGLE_PLACES_API_KEY` set, Google Places (New) Text Search
    returns the exact GBP title, coordinates and Place ID. Otherwise the rank provider's own
-   Maps search is used, and in mock mode the address is geocoded with Nominatim. You can
-   always bypass this with a `lat,lng` override (form → Advanced, or `--coordinates`).
+   Maps search is used, and in mock mode the address is geocoded. You can always bypass this
+   with a `lat,lng` override (form → Advanced, or `--coordinates`).
+
+   Geocoding fails over across four keyless services in order — Zippopotam (postal codes),
+   Photon, Open-Meteo, then Nominatim. Nominatim is last because it 403s VPN and datacentre
+   IPs, which made it a single point of failure. Results are cached in `.cache/geocode.json`,
+   and a service that cannot handle an input (a postal-code service given a city name) opts
+   out rather than counting as a failure.
 2. **Build the grid.** `src/geometry.js` lays out 25 points on a spherical-earth offset,
    centred on the listing (index 12 = `[2,2]`), at 0.5 / 1 / 2 mile spacing.
 3. **Rank each point.** Every point runs a Google Maps search *from that coordinate* and the
@@ -66,7 +72,10 @@ The email-ready takeaway prints to stdout; progress and file paths go to stderr,
    compass directions from the grid itself.
 5. **Render.** `src/render.js` draws the card with `@napi-rs/canvas` (bundled Inter font, so
    output is identical on every machine) on top of a muted basemap stitched from map tiles.
-   Default export is 2400 px wide; the PDF adds a second page with the takeaway text.
+   The map carries a scale bar, a north arrow, a dashed outline of the scanned square and a
+   dimension bracket labelled with the area covered, all derived from the real projection
+   rather than assumed. Default export is 2400 px wide; the PDF adds a second page with the
+   takeaway text.
 
 ## Rank providers
 
