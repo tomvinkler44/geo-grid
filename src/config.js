@@ -9,7 +9,7 @@ export const config = {
   /** mock | dataforseo | serpapi */
   rankProvider: env('RANK_PROVIDER', 'mock').toLowerCase(),
   /** osm | carto | mapbox | none */
-  mapProvider: env('MAP_PROVIDER', 'osm').toLowerCase(),
+  mapProvider: env('MAP_PROVIDER', 'carto').toLowerCase(),
   mapboxToken: env('MAPBOX_TOKEN'),
   mapboxStyle: env('MAPBOX_STYLE', 'mapbox/light-v11'),
   googlePlacesKey: env('GOOGLE_PLACES_API_KEY'),

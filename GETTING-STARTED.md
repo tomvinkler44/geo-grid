@@ -117,9 +117,16 @@ Node.js probably is not installed. Go back to Step 1.
 **Mac: double-clicking opens the file in a text editor instead of running it.**
 Right-click the file, choose **Open With**, then **Terminal**.
 
+**The report is covered in "Access blocked" text.**
+That came from OpenStreetMap's map servers, which are run by volunteers and
+block apps that use them for commercial work. The app now detects this and
+switches to a different map service by itself. If you still see it, open
+**⚙ Settings**, section 3, and choose **CARTO Positron**.
+
 **The report shows a plain grey pattern instead of streets.**
-The map images could not be downloaded. Check your internet connection, then in
-Settings section 3 try switching the basemap to **CARTO light**.
+No map service could be reached at all. Check your internet connection, and turn
+off any VPN. The yellow bar above the report names exactly which services were
+tried and what each one said.
 
 **It says "We could not find that location".**
 The app tries three independent address-lookup services before giving up, so

@@ -102,7 +102,8 @@
       <div id="report" class="hidden space-y-6">
         <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
           <img id="reportImg" alt="Geo-grid rank report" class="w-full block" />
-          <div class="flex flex-wrap items-center gap-3 p-4 border-t bg-slate-50">
+          <p id="mapWarn" class="hidden text-sm bg-amber-50 border-t border-amber-200 text-amber-900 px-4 py-3"></p>
+        <div class="flex flex-wrap items-center gap-3 p-4 border-t bg-slate-50">
             <a id="dlPng" download class="rounded-lg bg-slate-900 text-white text-sm font-medium px-4 py-2 hover:bg-slate-800">Download PNG</a>
             <a id="dlPdf" download class="rounded-lg border border-slate-300 bg-white text-sm font-medium px-4 py-2 hover:bg-slate-100">Download PDF</a>
             <a id="dlJson" download class="rounded-lg border border-slate-300 bg-white text-sm px-4 py-2 hover:bg-slate-100 text-slate-600">Raw data (JSON)</a>
@@ -225,7 +226,19 @@
       $('dlPdf').classList.toggle('hidden', !data.pdfUrl);
       $('dlJson').href = data.jsonUrl;
       const bm = report.basemap || {};
-      $('meta').textContent = `${report.provider} ranks · ${bm.offline ? 'offline basemap' : bm.provider + ' basemap'} · ${(data.elapsedMs / 1000).toFixed(1)}s` + (bm.error ? ` · map error: ${bm.error}` : '');
+      var mapNote = bm.offline ? 'no map service available' : bm.provider + ' map';
+      if (bm.fellBack && !bm.offline) mapNote += ' (fell back from ' + bm.requestedProvider + ')';
+      $('meta').textContent = report.provider + ' ranks · ' + mapNote + ' · ' + (data.elapsedMs / 1000).toFixed(1) + 's';
+      var warn = $('mapWarn');
+      if (bm.error) {
+        warn.textContent = (bm.offline
+          ? 'No map service could be reached, so the report shows a plain pattern instead of streets. '
+          : 'Your chosen map service failed, so a working one was used instead. ') + bm.error +
+          ' — change it under Settings, section 3.';
+        warn.classList.remove('hidden');
+      } else {
+        warn.classList.add('hidden');
+      }
       $('mAvg').textContent = m.averageRank.toFixed(1);
       $('mAvg').className = 'text-3xl font-bold mt-1 ' + (m.averageRank <= 3 ? 'text-emerald-500' : m.averageRank < 10 ? 'text-amber-500' : 'text-red-500');
       $('mTop3').textContent = Math.round(m.top3Share * 100) + '%';

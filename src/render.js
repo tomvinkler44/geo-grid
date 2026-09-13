@@ -410,5 +410,12 @@ export async function renderReport(report, opts = {}) {
     ctx.textAlign = 'left';
   }
 
-  return { png: canvas.toBuffer('image/png'), width: W * scale, height: H * scale, basemap: { provider: basemap.provider, zoom: basemap.zoom, offline: !!basemap.offline, error: basemap.error } };
+  return { png: canvas.toBuffer('image/png'), width: W * scale, height: H * scale, basemap: {
+      provider: basemap.provider,
+      requestedProvider: basemap.requestedProvider,
+      fellBack: !!basemap.fellBack,
+      zoom: basemap.zoom,
+      offline: !!basemap.offline,
+      error: basemap.error,
+    } };
 }

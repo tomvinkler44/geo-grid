@@ -69,12 +69,24 @@
         <label class="block">
           <span class="text-sm font-medium">Basemap</span>
           <select name="mapProvider" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
-            <option value="osm">OpenStreetMap, muted (free, no key)</option>
-            <option value="carto">CARTO light (free, no key)</option>
-            <option value="mapbox">Mapbox light (needs token)</option>
-            <option value="none">No map (offline pattern)</option>
+            <option value="carto">CARTO Positron — light and muted (free, no key)</option>
+            <option value="esri">Esri Light Gray Canvas (free, no key)</option>
+            <option value="mapbox">Mapbox — best quality (needs a free token)</option>
+            <option value="osm">OpenStreetMap standard — see the note below</option>
+            <option value="none">No map (plain pattern, for testing)</option>
           </select>
         </label>
+        <p class="text-sm text-slate-600">If the map you pick stops working, the app automatically
+        falls back to another one rather than producing a broken report. Click <b>Check setup</b>
+        above to see which one is actually being used.</p>
+        <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-slate-700">
+          <b>About OpenStreetMap standard tiles.</b> They come from donated, volunteer-run servers.
+          Their usage policy does not cover bulk or commercial use, and they block apps that ignore
+          it — which is why a report can come back covered in “Access blocked” text. For sending
+          reports to prospects, use CARTO or Esri above, or get a free
+          <a class="underline" target="_blank" rel="noopener" href="https://account.mapbox.com/auth/signup/">Mapbox token</a>,
+          whose free tier covers about 50,000 report images a month.
+        </div>
         <div data-for-map="mapbox">
           <label class="block"><span class="text-sm font-medium">Mapbox token</span>
             <input name="mapboxToken" type="password" autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>

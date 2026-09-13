@@ -4,6 +4,7 @@
  */
 import { config } from './config.js';
 import { geocode } from './providers/geocode.js';
+import { renderBasemap, TILE_PROVIDERS } from './basemap.js';
 import { getProvider } from './providers/index.js';
 import { resolveWithPlaces } from './providers/places.js';
 import { liveReady } from './settings.js';
@@ -23,20 +24,19 @@ async function check(name, fn) {
 export async function runHealthCheck() {
   const checks = [];
 
-  checks.push(await check('Map tiles', async () => {
+  checks.push(await check('Map', async () => {
     if (config.mapProvider === 'none') return 'Using the offline illustrative basemap';
-    if (config.mapProvider === 'mapbox') {
-      if (!config.mapboxToken) throw new Error('Mapbox is selected but no token is saved');
-      const r = await fetch(`https://api.mapbox.com/styles/v1/${config.mapboxStyle}/static/-121.8863,37.3382,13,0/100x100?access_token=${config.mapboxToken}`, { headers: { 'User-Agent': config.userAgent } });
-      if (!r.ok) throw new Error(`Mapbox replied ${r.status}`);
-      return 'Mapbox Static API reachable';
+    // Render a small real map: this exercises the same fetching, validation
+    // and fallback the report uses, so a blocked tile server shows up here.
+    const bm = await renderBasemap({
+      lat: TEST.lat, lng: TEST.lng, width: 512, height: 512, spanMeters: 3000,
+    });
+    const label = TILE_PROVIDERS[bm.provider]?.label || bm.provider;
+    if (bm.offline) throw new Error(`no map service worked, so reports will show a plain pattern. ${bm.error || ''}`);
+    if (bm.fellBack) {
+      return `${label} is being used instead of ${bm.requestedProvider}, which failed: ${bm.error}`;
     }
-    const url = config.mapProvider === 'carto'
-      ? 'https://basemaps.cartocdn.com/light_all/13/1320/3166@2x.png'
-      : 'https://tile.openstreetmap.org/13/1320/3166.png';
-    const r = await fetch(url, { headers: { 'User-Agent': config.userAgent } });
-    if (!r.ok) throw new Error(`Tile server replied ${r.status}`);
-    return `${config.mapProvider === 'carto' ? 'CARTO' : 'OpenStreetMap'} tiles reachable`;
+    return `${label} is working`;
   }));
 
   checks.push(await check('Address lookup', async () => {

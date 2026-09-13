@@ -94,10 +94,21 @@ provider per run; when no live credentials are present it is forced on.
 
 | `MAP_PROVIDER` | Needs | Look |
 | --- | --- | --- |
-| `osm` (default) | nothing | Standard OpenStreetMap tiles, desaturated + lightened by the renderer. Set a real `HTTP_USER_AGENT`; their tile policy requires it and disallows heavy automated use. |
-| `carto` | nothing | CARTO Positron light tiles at 2×. Already muted. Check their terms for commercial volume. |
-| `mapbox` | `MAPBOX_TOKEN` | Static Images API, `mapbox/light-v11` by default. Best looking, single request, fractional zoom. |
-| `none` | nothing | Procedural street pattern. Used automatically if tiles cannot be fetched so mock runs never fail. |
+| `carto` (default) | nothing | CARTO Positron light tiles at 2×. Already muted. |
+| `esri` | nothing | Esri World Light Gray Canvas. Keyless second choice; caps at z16. |
+| `mapbox` | `MAPBOX_TOKEN` | Static Images API, `mapbox/light-v11` by default. Best looking, one request, fractional zoom, and the only option whose terms clearly cover commercial volume (~50k images/month free). |
+| `osm` | nothing | Standard OpenStreetMap tiles. **Never selected automatically.** Volunteer-run servers whose tile usage policy does not cover bulk or commercial use. |
+| `none` | nothing | Procedural street pattern. Last resort so a report always renders. |
+
+Providers fail over in order: the configured one, then `carto`, then `esri`, then the offline
+pattern. `report.basemap` reports `provider`, `requestedProvider`, `fellBack` and `error`, and both
+the UI and the PDF say plainly when a fallback was used.
+
+A refusing tile server is the failure mode worth knowing about: OpenStreetMap answers a blocked app
+with **HTTP 200 and a placeholder PNG reading "Access blocked"**, so status codes alone cannot
+detect it. `validateTiles` hashes every tile in the view and rejects the map when they all come back
+byte-identical, then purges those tiles from the cache. A provider that refuses us is remembered for
+the life of the process and skipped on later reports.
 
 Tiles are cached in `.cache/tiles/` so re-running a report is free and polite.
 
