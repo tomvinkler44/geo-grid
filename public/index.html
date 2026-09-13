@@ -24,7 +24,7 @@
           <p class="text-xs text-slate-500">5 × 5 local ranking scan · outreach asset generator</p>
         </div>
       </div>
-      <div id="providerBadge" class="text-xs text-slate-500"></div>
+      <div class="flex items-center gap-4"><div id="providerBadge" class="text-xs text-slate-500"></div><a href="/settings.html" class="text-sm font-medium rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100">⚙ Settings</a></div>
     </div>
   </header>
 
@@ -149,7 +149,7 @@
       $('providerBadge').textContent = `Ranks: ${live} · Map: ${cfg.mapProvider}${cfg.placesReady ? ' · Places ✓' : ''}`;
       if (!cfg.liveReady) {
         $('mock').checked = true;
-        $('mockHelp').textContent = 'No live rank provider is configured in .env, so mock mode is required.';
+        $('mockHelp').innerHTML = 'No ranking service is set up yet, so reports use sample data. Add credentials in <a class="underline" href="/settings.html">Settings</a>.';
         $('mock').disabled = true;
       } else {
         $('mockHelp').textContent = `Uncheck to run 25 real lookups via ${cfg.rankProvider}.`;

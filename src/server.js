@@ -4,9 +4,28 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { generateReport } from './report.js';
 import { SPACING_OPTIONS } from './audit.js';
+import { loadSettings, readSettings, saveSettings, liveReady } from './settings.js';
+import { runHealthCheck } from './healthcheck.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+await loadSettings();
+
 const app = express();
+app.disable('x-powered-by');
+
+// Optional password gate for hosted deployments (APP_PASSWORD in the env).
+const appPassword = (process.env.APP_PASSWORD || '').trim();
+if (appPassword) {
+  app.use((req, res, next) => {
+    const header = req.headers.authorization || '';
+    const [scheme, encoded] = header.split(' ');
+    const given = scheme === 'Basic' && encoded ? Buffer.from(encoded, 'base64').toString().split(':').slice(1).join(':') : '';
+    if (given === appPassword) return next();
+    res.set('WWW-Authenticate', 'Basic realm="Geo-Grid", charset="UTF-8"');
+    res.status(401).send('Password required. Any username works.');
+  });
+}
+
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -14,12 +33,9 @@ const outDir = path.resolve(config.outputDir);
 app.use('/reports', express.static(outDir, { index: false, dotfiles: 'deny' }));
 
 app.get('/api/config', (_req, res) => {
-  const hasLiveProvider =
-    (config.rankProvider === 'dataforseo' && !!config.dataforseo.login) ||
-    (config.rankProvider === 'serpapi' && !!config.serpapiKey);
   res.json({
     rankProvider: config.rankProvider,
-    liveReady: hasLiveProvider,
+    liveReady: liveReady(),
     mapProvider: config.mapProvider,
     placesReady: !!config.googlePlacesKey,
     agencyName: config.agencyName,
@@ -27,12 +43,30 @@ app.get('/api/config', (_req, res) => {
   });
 });
 
+app.get('/api/settings', (_req, res) => res.json(readSettings()));
+app.post('/api/settings', async (req, res) => {
+  try {
+    res.json(await saveSettings(req.body || {}));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/health-check', async (_req, res) => {
+  try {
+    res.json(await runHealthCheck());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/audit', async (req, res) => {
   const { business, location, keyword, spacingMi, mock, coordinates, scale } = req.body || {};
   const started = Date.now();
   try {
+    const useMock = mock !== false || !liveReady();
     const result = await generateReport(
-      { business, location, keyword, spacingMi: Number(spacingMi ?? 0.5), mock: mock !== false, coordinates, onProgress: (m) => console.log(`[audit] ${m}`) },
+      { business, location, keyword, spacingMi: Number(spacingMi ?? 0.5), mock: useMock, coordinates, onProgress: (m) => console.log(`[audit] ${m}`) },
       { scale: scale === 1 ? 1 : 2 },
     );
     const { id, report, takeaway, files } = result;
@@ -51,7 +85,8 @@ app.post('/api/audit', async (req, res) => {
   }
 });
 
-app.listen(config.port, () => {
+const host = process.env.HOST || '0.0.0.0';
+app.listen(config.port, host, () => {
   console.log(`geo-grid running at http://localhost:${config.port}`);
-  console.log(`  rank provider: ${config.rankProvider}   map: ${config.mapProvider}   output: ${outDir}`);
+  console.log(`  rank provider: ${config.rankProvider}   map: ${config.mapProvider}   output: ${outDir}${appPassword ? '   password: on' : ''}`);
 });

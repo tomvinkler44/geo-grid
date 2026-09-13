@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings · Geo-Grid Rank Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <header class="border-b bg-white">
+    <div class="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="font-semibold leading-tight">Settings</h1>
+        <p class="text-xs text-slate-500">Paste your keys here once. They are saved on this computer/server, never in the report.</p>
+      </div>
+      <a href="/" class="text-sm text-slate-600 hover:text-slate-900">← Back to reports</a>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-5 py-8 space-y-6">
+    <section class="bg-white rounded-2xl border shadow-sm p-6">
+      <div class="flex items-center justify-between gap-4 mb-3">
+        <div>
+          <h2 class="font-semibold">Is everything working?</h2>
+          <p class="text-sm text-slate-500">Runs one tiny test call against each service you have set up.</p>
+        </div>
+        <button id="check" class="rounded-lg bg-slate-900 text-white text-sm font-medium px-4 py-2 hover:bg-slate-800 whitespace-nowrap">Check setup</button>
+      </div>
+      <ul id="checks" class="space-y-2 text-sm"></ul>
+    </section>
+
+    <form id="form" class="space-y-6">
+      <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
+        <h2 class="font-semibold">1. Where do real rankings come from?</h2>
+        <p class="text-sm text-slate-600">Without this you can only run mock reports. Pick one service and paste its credentials. Each report costs about 25 searches.</p>
+        <label class="block">
+          <span class="text-sm font-medium">Ranking service</span>
+          <select name="rankProvider" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="mock">Mock only (no real data)</option>
+            <option value="dataforseo">DataForSEO (cheapest per report, ~5¢)</option>
+            <option value="serpapi">SerpApi (simplest signup)</option>
+          </select>
+        </label>
+        <div data-for="dataforseo" class="grid sm:grid-cols-2 gap-4">
+          <label class="block"><span class="text-sm font-medium">DataForSEO login (email)</span>
+            <input name="dataforseoLogin" autocomplete="off" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">DataForSEO API password</span>
+            <input name="dataforseoPassword" type="password" autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <p class="sm:col-span-2 text-xs text-slate-500">Get them at <a class="underline" target="_blank" rel="noopener" href="https://app.dataforseo.com/api-access">app.dataforseo.com/api-access</a>. The API password is different from your account password.</p>
+        </div>
+        <div data-for="serpapi">
+          <label class="block"><span class="text-sm font-medium">SerpApi key</span>
+            <input name="serpapiKey" type="password" autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <p class="text-xs text-slate-500 mt-1">Get it at <a class="underline" target="_blank" rel="noopener" href="https://serpapi.com/manage-api-key">serpapi.com/manage-api-key</a>.</p>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
+        <h2 class="font-semibold">2. Finding the exact business listing <span class="text-slate-400 font-normal">(optional, recommended)</span></h2>
+        <p class="text-sm text-slate-600">A Google Places key makes sure the grid is centred on the right listing and matches it by ID instead of by name. Free for this volume.</p>
+        <label class="block"><span class="text-sm font-medium">Google Places API key</span>
+          <input name="googlePlacesKey" type="password" autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+        <p class="text-xs text-slate-500">Create one in <a class="underline" target="_blank" rel="noopener" href="https://console.cloud.google.com/google/maps-apis/credentials">Google Cloud Console</a> with “Places API (New)” enabled.</p>
+      </section>
+
+      <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
+        <h2 class="font-semibold">3. Map style <span class="text-slate-400 font-normal">(optional)</span></h2>
+        <label class="block">
+          <span class="text-sm font-medium">Basemap</span>
+          <select name="mapProvider" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="osm">OpenStreetMap, muted (free, no key)</option>
+            <option value="carto">CARTO light (free, no key)</option>
+            <option value="mapbox">Mapbox light (needs token)</option>
+            <option value="none">No map (offline pattern)</option>
+          </select>
+        </label>
+        <div data-for-map="mapbox">
+          <label class="block"><span class="text-sm font-medium">Mapbox token</span>
+            <input name="mapboxToken" type="password" autocomplete="new-password" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
+        <h2 class="font-semibold">4. Your branding on the report</h2>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block"><span class="text-sm font-medium">Agency / your name</span>
+            <input name="agencyName" placeholder="Acme Local Marketing" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Website</span>
+            <input name="agencyUrl" placeholder="acmelocal.com" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+        </div>
+        <label class="block"><span class="text-sm font-medium">Contact email for map providers</span>
+          <input name="userAgent" placeholder="geo-grid-report/0.1 (you@example.com)" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <span class="text-xs text-slate-500">OpenStreetMap asks that automated tools identify themselves. Put your email in the brackets.</span></label>
+      </section>
+
+      <div class="flex items-center gap-4">
+        <button type="submit" class="rounded-lg bg-emerald-600 text-white font-medium px-5 py-2.5 hover:bg-emerald-700">Save settings</button>
+        <span id="status" class="text-sm text-slate-600"></span>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById('form');
+    const status = document.getElementById('status');
+
+    function syncVisibility() {
+      const rp = form.rankProvider.value;
+      document.querySelectorAll('[data-for]').forEach((el) => el.classList.toggle('hidden', el.dataset.for !== rp));
+      document.querySelectorAll('[data-for-map]').forEach((el) => el.classList.toggle('hidden', el.dataset.forMap !== form.mapProvider.value));
+    }
+    form.rankProvider.addEventListener('change', syncVisibility);
+    form.mapProvider.addEventListener('change', syncVisibility);
+
+    async function load() {
+      const s = await (await fetch('/api/settings')).json();
+      for (const [k, v] of Object.entries(s)) if (form[k]) form[k].value = v;
+      syncVisibility();
+    }
+    load();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.textContent = 'Saving…';
+      const body = Object.fromEntries(new FormData(form).entries());
+      const res = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) { status.textContent = 'Error: ' + data.error; return; }
+      for (const [k, v] of Object.entries(data)) if (form[k]) form[k].value = v;
+      status.textContent = 'Saved. Click "Check setup" to test it.';
+    });
+
+    document.getElementById('check').addEventListener('click', async () => {
+      const ul = document.getElementById('checks');
+      ul.innerHTML = '<li class="text-slate-500">Testing… this takes a few seconds.</li>';
+      const res = await fetch('/api/health-check');
+      const data = await res.json();
+      if (!res.ok) { ul.innerHTML = `<li class="text-red-600">${data.error}</li>`; return; }
+      ul.innerHTML = data.checks.map((c) => {
+        const icon = c.ok === true ? '✅' : c.ok === false ? '❌' : '➖';
+        return `<li class="flex gap-2"><span>${icon}</span><span><span class="font-medium">${c.name}</span> <span class="text-slate-600">– ${c.detail}</span></span></li>`;
+      }).join('') + (data.liveReady
+        ? '<li class="mt-2 text-emerald-700 font-medium">Real rankings are enabled. On the report page, untick "Mock mode".</li>'
+        : '<li class="mt-2 text-amber-700">Only mock reports for now. Add ranking credentials above to enable real data.</li>');
+    });
+  </script>
+</body>
+</html>

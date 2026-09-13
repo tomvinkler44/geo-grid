@@ -1,0 +1,18 @@
+# One-click deploy on Render (https://render.com): New + > Blueprint > pick this repo.
+services:
+  - type: web
+    name: geo-grid
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/config
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: APP_PASSWORD
+        generateValue: true   # find it under Environment in the Render dashboard; any username works
+      - key: HTTP_USER_AGENT
+        value: geo-grid-report/0.1 (hosted on Render)
+      - key: RANK_PROVIDER
+        value: mock
+      - key: MAP_PROVIDER
+        value: osm

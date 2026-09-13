@@ -8,6 +8,9 @@ you can paste into an email.
 
 Runs as a small Express web app **or** a one-line CLI. No build step, no database.
 
+**Not technical?** Read [GETTING-STARTED.md](GETTING-STARTED.md): double-click launchers for
+Mac/Windows, or a one-click Render deploy. All keys are entered on the in-app **Settings** page.
+
 ## Quick start
 
 ```bash
@@ -18,6 +21,15 @@ npm start                   # http://localhost:3000
 
 Fill in the form, leave **Mock mode** checked, hit **Run Grid Audit**. You get the report
 card, the metrics, the takeaway text, a *Copy Email Summary* button and PNG/PDF downloads.
+
+API keys can go in `.env` **or** in the in-app **Settings** page (saved to `data/settings.json`,
+which overrides `.env`). **Settings → Check setup** runs one test call per configured service.
+Set `APP_PASSWORD` to put the whole app behind a password when hosting it.
+
+### Hosting
+
+`Dockerfile` and `render.yaml` are included. On Render: New + → Blueprint → this repo. The
+blueprint generates an `APP_PASSWORD` for you.
 
 ### CLI
 
