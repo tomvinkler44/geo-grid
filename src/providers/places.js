@@ -17,6 +17,10 @@ const FIELD_MASK = [
   'places.websiteUri',
   'places.primaryTypeDisplayName',
   'places.types',
+  'places.nationalPhoneNumber',
+  'places.regularOpeningHours.openNow',
+  'places.regularOpeningHours.weekdayDescriptions',
+  'places.businessStatus',
 ].join(',');
 
 function toCandidate(p) {
@@ -30,6 +34,9 @@ function toCandidate(p) {
     reviews: p.userRatingCount,
     website: p.websiteUri || '',
     category: p.primaryTypeDisplayName?.text || prettyType(p.types?.[0]) || '',
+    phone: p.nationalPhoneNumber || '',
+    hours: p.regularOpeningHours?.weekdayDescriptions?.length ? p.regularOpeningHours.weekdayDescriptions : null,
+    status: p.businessStatus || '',
   };
 }
 

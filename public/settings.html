@@ -4,8 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Settings · Geo-Grid Rank Report</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif; }</style>
+  <link rel="stylesheet" href="/tailwind.css">
+  <style>
+    @font-face { font-family: Inter; font-weight: 400; font-display: swap; src: url('/fonts/Inter-Regular.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 600; font-display: swap; src: url('/fonts/Inter-SemiBold.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 700; font-display: swap; src: url('/fonts/Inter-Bold.ttf') format('truetype'); }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
   <header class="border-b bg-white">
@@ -33,7 +38,8 @@
     <form id="form" class="space-y-6">
       <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
         <h2 class="font-semibold">1. Where do real rankings come from?</h2>
-        <p class="text-sm text-slate-600">Without this you can only run mock reports. Pick one service and paste its credentials. Each report costs about 25 searches.</p>
+        <p class="text-sm text-slate-600">Without this you can only run mock reports. Pick one service and paste its credentials. Each report costs 25 searches for the grid, plus one reviews lookup per business.</p>
+        <p class="text-sm text-slate-600">The grid scan alone cannot measure review recency or owner replies — those need the provider's reviews endpoint. <b>SerpApi</b> returns both in a single call. <b>DataForSEO</b> returns them through a queued task, which is slower and occasionally times out. If neither is set, those two cards read “not measured” rather than showing a made-up zero.</p>
         <label class="block">
           <span class="text-sm font-medium">Ranking service</span>
           <select name="rankProvider" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
@@ -108,6 +114,24 @@
         <label class="block"><span class="text-sm font-medium">Contact email for map providers</span>
           <input name="userAgent" placeholder="geo-grid-report/0.1 (you@example.com)" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <span class="text-xs text-slate-500">OpenStreetMap asks that automated tools identify themselves. Put your email in the brackets.</span></label>
+      </section>
+
+      <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
+        <h2 class="font-semibold">5. The offer on the report</h2>
+        <p class="text-sm text-slate-600">This is the strip at the foot of every executive audit. Change it to your own package and price.</p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Offer name</span>
+            <input name="offerName" placeholder="Automated Review Engine &amp; Geo-Expansion" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Price</span>
+            <input name="offerPrice" placeholder="$297/mo" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Terms</span>
+            <input name="offerTerms" placeholder="flat, no contract" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Button text</span>
+            <input name="offerCta" placeholder="Accept Proposal &amp; Start Engine" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Button link <span class="font-normal text-slate-400">optional</span></span>
+            <input name="offerCtaUrl" placeholder="https://calendly.com/you/intro" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">Leave blank and the button is shown but not clickable.</span></label>
+        </div>
       </section>
 
       <div class="flex items-center gap-4">

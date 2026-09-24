@@ -3,16 +3,56 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Geo-Grid Rank Report</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Local Visibility Audit</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Ccircle cx='10' cy='10' r='3' fill='%2322c55e'/%3E%3Ccircle cx='22' cy='10' r='3' fill='%23f59e0b'/%3E%3Ccircle cx='10' cy='22' r='3' fill='%23f59e0b'/%3E%3Ccircle cx='22' cy='22' r='3' fill='%23ef4444'/%3E%3C/svg%3E">
+  <!-- Tailwind is built into tailwind.css and Inter is served from /fonts, so
+       the app needs no CDN at runtime. Rebuild with: npm run build:css -->
+  <link rel="stylesheet" href="/tailwind.css">
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif; }
+    @font-face { font-family: Inter; font-weight: 400; font-display: swap; src: url('/fonts/Inter-Regular.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 500; font-display: swap; src: url('/fonts/Inter-Medium.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 600; font-display: swap; src: url('/fonts/Inter-SemiBold.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 700; font-display: swap; src: url('/fonts/Inter-Bold.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 800; font-display: swap; src: url('/fonts/Inter-Bold.ttf') format('truetype'); }
+    :root { --ink:#0f172a; --muted:#64748b; }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
     .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+    .toast { transition: opacity .25s ease, transform .25s ease; }
+
+    /* ---------- Print: the executive page only, on one sheet ---------- */
+    @page { size: letter portrait; margin: 0.45in; }
+    @media print {
+      html, body { background: #fff !important; }
+      .no-print { display: none !important; }
+      #shell { display: block !important; max-width: none !important; padding: 0 !important; margin: 0 !important; }
+      /* The on-screen gutter that keeps the floating bar clear of the report
+         must not become a second printed page. */
+      #reportCol { position: static !important; padding: 0 !important; margin: 0 !important; }
+      #exec {
+        border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
+        padding: 0 !important; margin: 0 !important; width: 100% !important;
+      }
+      #exec, #exec * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .print-tight { font-size: 9.5pt !important; line-height: 1.34 !important; }
+      .print-h1 { font-size: 15pt !important; }
+      .print-badge { font-size: 22pt !important; }
+      .print-panel img { max-height: 2.05in !important; width: 100% !important; object-fit: cover; }
+      .print-panel-name { font-size: 8pt !important; }
+      .print-card-value { font-size: 12pt !important; }
+      .print-label { font-size: 6.6pt !important; }
+      .print-sentence { font-size: 8.8pt !important; line-height: 1.35 !important; }
+      .print-gap { gap: 8px !important; }
+      .print-pad { padding: 8px !important; }
+      #exec section { break-inside: avoid; page-break-inside: avoid; }
+      details[open] > *:not(summary) { display: none !important; }
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
-  <header class="border-b bg-white">
-    <div class="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
+<body class="bg-slate-100 text-slate-900 min-h-screen">
+
+  <!-- ============================ Top bar ============================ -->
+  <header class="no-print border-b bg-white sticky top-0 z-30">
+    <div class="max-w-[1500px] mx-auto px-5 py-3 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-slate-900 grid grid-cols-3 gap-0.5 p-1.5">
           <span class="rounded-full bg-emerald-500"></span><span class="rounded-full bg-emerald-500"></span><span class="rounded-full bg-amber-400"></span>
@@ -20,361 +60,192 @@
           <span class="rounded-full bg-amber-400"></span><span class="rounded-full bg-red-500"></span><span class="rounded-full bg-red-500"></span>
         </div>
         <div>
-          <h1 class="font-semibold leading-tight">Geo-Grid Rank Report</h1>
-          <p class="text-xs text-slate-500">You vs two rivals, on one 5 × 5 scan</p>
+          <h1 class="font-semibold leading-tight">Local Visibility Audit</h1>
+          <p class="text-xs text-slate-500">Scan · recommend rivals · one-page executive report</p>
         </div>
       </div>
-      <div class="flex items-center gap-4">
-        <div id="providerBadge" class="text-xs text-slate-500 hidden sm:block"></div>
-        <a href="/settings.html" class="text-sm font-medium rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 whitespace-nowrap">⚙ Settings</a>
+      <div class="flex items-center gap-3">
+        <span id="providerBadge" class="text-xs text-slate-500 hidden md:block"></span>
+        <a href="/settings.html" class="text-sm font-medium rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-50 whitespace-nowrap">⚙ Settings</a>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-5 py-8 grid gap-8 lg:grid-cols-[380px_1fr]">
-    <!-- ============ Report Composer ============ -->
-    <section class="bg-white rounded-2xl border shadow-sm p-6 h-fit lg:sticky lg:top-6">
-      <h2 class="font-semibold mb-1">Report composer</h2>
-      <p class="text-xs text-slate-500 mb-5">All three panels come from the same 25 lookups, so adding rivals costs nothing extra.</p>
+  <div id="shell" class="max-w-[1500px] mx-auto px-5 py-6 grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
 
-      <form id="form" class="space-y-6">
-        <!-- A -->
-        <fieldset class="space-y-3">
-          <legend class="text-xs font-bold tracking-wide text-slate-500 uppercase mb-2">A · The business you're pitching</legend>
-          <div>
-            <label class="block text-sm font-medium mb-1" for="business">Business name</label>
-            <input id="business" name="business" required placeholder="Pacific Coast Assisted Living"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1" for="location">City, State (or zip)</label>
-            <input id="location" name="location" required placeholder="Sunnyvale, CA"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1" for="address">Street address <span class="font-normal text-slate-400">optional</span></label>
-            <input id="address" name="address" placeholder="1250 Elm St"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-            <p class="text-xs text-slate-500 mt-1">Makes sure the right listing is picked when several have similar names.</p>
-          </div>
-        </fieldset>
+    <!-- ========================= Composer ========================= -->
+    <aside class="no-print space-y-4 lg:sticky lg:top-[72px] h-fit">
 
-        <!-- B -->
-        <fieldset class="space-y-3 pt-1 border-t">
-          <legend class="text-xs font-bold tracking-wide text-slate-500 uppercase mb-2 pt-4">B · Competitors <span class="font-normal normal-case tracking-normal text-slate-400">optional</span></legend>
-          <p class="text-xs text-slate-500 -mt-1">Leave both blank and the two strongest rivals in the results are picked automatically.</p>
-          <div>
-            <label class="block text-sm font-medium mb-1" for="competitor1">Competitor 1 <span class="font-normal text-slate-400">the dominant rival</span></label>
-            <input id="competitor1" name="competitor1" placeholder="Sunrise Senior Living of Sunnyvale"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1" for="competitor2">Competitor 2</label>
-            <input id="competitor2" name="competitor2" placeholder="The Terraces of Los Altos"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          </div>
-          <p id="mockCompNote" class="hidden text-xs bg-amber-50 border border-amber-200 rounded-lg p-2 text-amber-900">
-            Mock mode invents the market, so typed competitor names are ignored while it is on. Real names would be attached to invented numbers.
-          </p>
-        </fieldset>
+      <!-- Stepper -->
+      <ol id="stepper" class="bg-white rounded-2xl border p-3 flex items-center gap-1 text-[11px] font-semibold"></ol>
 
-        <!-- C -->
-        <fieldset class="space-y-3 pt-1 border-t">
-          <legend class="text-xs font-bold tracking-wide text-slate-500 uppercase mb-2 pt-4">C · Audit parameters</legend>
-          <div>
-            <label class="block text-sm font-medium mb-1" for="keyword">Target search keyword</label>
-            <input id="keyword" name="keyword" required placeholder="assisted living sunnyvale"
-                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1" for="spacing">Grid spacing</label>
-            <select id="spacing" name="spacingMi" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
-              <option value="0.5" selected>0.5 miles (2 mi across) · dense urban</option>
-              <option value="1">1 mile (4 mi across) · suburban</option>
-              <option value="2">2 miles (8 mi across) · rural / wide service area</option>
-            </select>
-          </div>
-          <details class="text-sm">
-            <summary class="cursor-pointer text-slate-600">Advanced · paste exact coordinates</summary>
-            <div class="mt-3 space-y-3">
-              <div>
-                <label class="block text-sm font-medium mb-1" for="coordinates">Listing coordinates</label>
-                <input id="coordinates" name="coordinates" placeholder="37.3688, -122.0363"
-                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-                <p class="text-xs text-slate-500 mt-1">Skips the address lookup and centres the grid exactly here. In Google Maps, right-click the business and click the numbers at the top of the menu to copy them.</p>
-              </div>
-              <label class="flex items-center gap-2"><input type="checkbox" id="scale1" /> Smaller images (half size)</label>
-            </div>
-          </details>
-        </fieldset>
-
-        <label class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 cursor-pointer">
-          <input type="checkbox" id="mock" checked class="mt-0.5" />
-          <span class="text-sm">
-            <span class="font-medium">Mock mode</span>
-            <span id="mockHelp" class="block text-xs text-slate-600">Generates a realistic market without using API credits.</span>
+      <!-- Step 1 -->
+      <section id="card1" class="bg-white rounded-2xl border shadow-sm">
+        <button type="button" id="head1" class="w-full flex items-center justify-between gap-3 p-4 text-left">
+          <span class="flex items-center gap-3">
+            <span class="w-7 h-7 rounded-full bg-slate-900 text-white grid place-items-center text-xs font-bold">1</span>
+            <span>
+              <span class="font-semibold block leading-tight">Business details</span>
+              <span id="sum1" class="text-xs text-slate-500"></span>
+            </span>
           </span>
-        </label>
-
-        <button id="submit" type="submit"
-                class="w-full rounded-lg bg-slate-900 text-white font-medium py-2.5 hover:bg-slate-800 disabled:opacity-60">
-          <span id="btnText">Run Grid Audit</span>
+          <span id="chev1" class="text-slate-400 text-xs">▾</span>
         </button>
-        <div id="error" class="hidden text-sm bg-red-50 border border-red-200 rounded-lg p-3">
-          <p class="font-semibold text-red-700 mb-1" id="errorTitle">That did not work</p>
-          <p class="text-red-700" id="errorBody"></p>
+        <div id="body1" class="px-4 pb-4 space-y-3 border-t pt-4">
+          <form id="form1" class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium mb-1" for="business">Business name <span class="text-red-500">*</span></label>
+              <input id="business" required placeholder="Pacific Coast Assisted Living"
+                     class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="location">City, State or Zip <span class="text-red-500">*</span></label>
+              <input id="location" required placeholder="Sunnyvale, CA"
+                     class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="address">Street address <span class="font-normal text-slate-400">optional</span></label>
+              <input id="address" placeholder="1250 Elm St"
+                     class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+              <p class="text-xs text-slate-500 mt-1">Pins the exact listing when several share a name.</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="keyword">Target search keyword <span class="text-red-500">*</span></label>
+              <input id="keyword" required placeholder="assisted living sunnyvale"
+                     class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="spacing">Grid spacing</label>
+              <select id="spacing" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
+                <option value="0.5" selected>0.5 mi spacing · 2 mi across</option>
+                <option value="1">1 mi spacing · 4 mi across</option>
+                <option value="2">2 mi spacing · 8 mi across</option>
+              </select>
+            </div>
+            <details class="text-sm">
+              <summary class="cursor-pointer text-slate-600">Advanced · paste exact coordinates</summary>
+              <div class="mt-2">
+                <input id="coordinates" placeholder="37.3688, -122.0363"
+                       class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                <p class="text-xs text-slate-500 mt-1">Skips the address lookup. In Google Maps, right-click the business and click the numbers at the top of the menu.</p>
+              </div>
+            </details>
+            <label class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 cursor-pointer">
+              <input type="checkbox" id="mock" checked class="mt-0.5" />
+              <span class="text-sm">
+                <span class="font-medium">Mock mode</span>
+                <span id="mockHelp" class="block text-xs text-slate-600">Sample data, no API credits used.</span>
+              </span>
+            </label>
+            <button type="submit" id="btnScan"
+                    class="w-full rounded-xl bg-slate-900 text-white font-semibold py-2.5 hover:bg-slate-800 disabled:opacity-60">
+              Scan market &amp; find competitors
+            </button>
+            <p class="text-xs text-slate-500 text-center">Runs the 25-point scan once. Approving rivals next does not scan again.</p>
+          </form>
         </div>
-      </form>
-    </section>
+      </section>
 
-    <!-- ============ Results ============ -->
-    <section id="results" class="space-y-6 min-w-0">
-      <div id="empty" class="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">
-        <p class="font-medium text-slate-700">Your report will appear here</p>
-        <p class="text-sm mt-1">Fill in the composer and run an audit. Mock mode takes a few seconds.</p>
+      <!-- Step 2 -->
+      <section id="card2" class="bg-white rounded-2xl border shadow-sm hidden">
+        <div class="flex items-center gap-3 p-4 border-b">
+          <span class="w-7 h-7 rounded-full bg-slate-900 text-white grid place-items-center text-xs font-bold">2</span>
+          <span>
+            <span class="font-semibold block leading-tight">Recommended rivals</span>
+            <span class="text-xs text-slate-500">Approve, or swap either one</span>
+          </span>
+        </div>
+        <div id="recs" class="p-4 space-y-3"></div>
+      </section>
+
+      <!-- Step 3 -->
+      <section id="card3" class="bg-white rounded-2xl border shadow-sm hidden p-4 space-y-3">
+        <div class="flex items-center gap-3">
+          <span class="w-7 h-7 rounded-full bg-slate-900 text-white grid place-items-center text-xs font-bold">3</span>
+          <span class="font-semibold">Generate the audit</span>
+        </div>
+        <button id="btnGenerate"
+                class="w-full rounded-xl bg-emerald-600 text-white font-semibold py-3 hover:bg-emerald-700 disabled:opacity-60">
+          Approve Rivals &amp; Generate Executive Audit
+        </button>
+        <p class="text-xs text-slate-500 text-center">Reads all three businesses from the scan you already ran.</p>
+      </section>
+
+      <div id="error" class="hidden rounded-xl bg-red-50 border border-red-200 p-3 text-sm">
+        <p class="font-semibold text-red-700 mb-1" id="errorTitle">That did not work</p>
+        <p class="text-red-700" id="errorBody"></p>
+      </div>
+    </aside>
+
+    <!-- ========================= Report column ========================= -->
+    <main id="reportCol" class="min-w-0 pb-24">
+
+      <div id="empty" class="no-print rounded-2xl border border-dashed bg-white p-16 text-center text-slate-500">
+        <p class="font-semibold text-slate-700">Your executive audit will appear here</p>
+        <p class="text-sm mt-1">Fill in step 1 and scan the market.</p>
       </div>
 
-      <div id="loading" class="hidden rounded-2xl border bg-white p-12 text-center">
+      <div id="loading" class="no-print hidden rounded-2xl border bg-white p-16 text-center">
         <svg class="spin w-8 h-8 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-        <p id="loadingText" class="mt-4 text-slate-600 text-sm">Resolving listing…</p>
+        <p id="loadingText" class="mt-4 text-slate-600 text-sm">Working…</p>
       </div>
 
-      <div id="report" class="hidden space-y-6">
-        <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
-          <div class="flex items-center gap-1 px-4 pt-3 border-b">
-            <button id="tabCompare" type="button" class="text-sm font-medium px-3 py-2 border-b-2 border-slate-900">Comparison sheet</button>
-            <button id="tabDetail" type="button" class="text-sm font-medium px-3 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800">Your detailed grid</button>
+      <!-- ===================== The deliverable ===================== -->
+      <article id="exec" class="hidden bg-white rounded-2xl border shadow-sm p-7 space-y-5">
+
+        <!-- Header + visibility badge -->
+        <section class="flex flex-wrap items-start justify-between gap-5">
+          <div class="min-w-0">
+            <p class="print-label text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase">Local visibility audit</p>
+            <h2 id="xName" class="print-h1 text-2xl font-extrabold leading-tight mt-1"></h2>
+            <p id="xMeta" class="print-tight text-sm text-slate-600 mt-1"></p>
           </div>
-          <img id="reportImg" alt="Geo-grid comparison report" class="w-full block" />
-          <img id="detailImg" alt="Detailed geo-grid for the target business" class="w-full block hidden" />
-          <p id="mapWarn" class="hidden text-sm bg-amber-50 border-t border-amber-200 text-amber-900 px-4 py-3"></p>
-          <div class="flex flex-wrap items-center gap-3 p-4 border-t bg-slate-50">
-            <a id="dlPng" download class="rounded-lg bg-slate-900 text-white text-sm font-medium px-4 py-2 hover:bg-slate-800">Download comparison PNG</a>
-            <a id="dlDetail" download class="rounded-lg border border-slate-300 bg-white text-sm font-medium px-4 py-2 hover:bg-slate-100">Detail grid PNG</a>
-            <a id="dlPdf" download class="rounded-lg border border-slate-300 bg-white text-sm font-medium px-4 py-2 hover:bg-slate-100">PDF</a>
-            <a id="dlJson" download class="rounded-lg border border-slate-300 bg-white text-sm px-4 py-2 hover:bg-slate-100 text-slate-600">Raw data</a>
-            <span id="meta" class="text-xs text-slate-500 ml-auto"></span>
+          <div class="text-right shrink-0">
+            <p class="print-label text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase">Local visibility share</p>
+            <p id="xShare" class="print-badge text-5xl font-extrabold leading-none mt-1"></p>
+            <p id="xShareSub" class="print-tight text-xs text-slate-500 mt-1"></p>
           </div>
-        </div>
+        </section>
 
-        <div>
-          <p class="text-xs font-bold tracking-wide text-slate-500 uppercase mb-2">Side by side</p>
-          <div id="scoreboard" class="grid sm:grid-cols-3 gap-4"></div>
-          <p id="compSource" class="text-xs text-slate-500 mt-2"></p>
-        </div>
+        <!-- 3-way heatmap -->
+        <section>
+          <div id="xPanels" class="print-gap grid grid-cols-3 gap-4"></div>
+          <p id="xAttrib" class="print-label text-[10px] text-slate-400 mt-1.5"></p>
+        </section>
 
-        <div class="bg-white rounded-2xl border shadow-sm p-6 space-y-5">
-          <div class="flex items-center justify-between gap-4">
-            <h2 class="font-semibold text-lg">Client takeaway</h2>
-            <button id="copyEmail" class="rounded-lg bg-emerald-600 text-white text-sm font-medium px-4 py-2 hover:bg-emerald-700">Copy Email Summary</button>
-          </div>
-          <div>
-            <h3 class="text-sm font-semibold text-emerald-600 mb-1">The Good</h3>
-            <p id="tGood" class="text-sm text-slate-700 leading-relaxed"></p>
-          </div>
-          <div>
-            <h3 class="text-sm font-semibold text-red-600 mb-1">The Revenue Leak</h3>
-            <p id="tLeak" class="text-sm text-slate-700 leading-relaxed"></p>
-          </div>
-          <div>
-            <h3 class="text-sm font-semibold text-amber-600 mb-1">The Competitive Context</h3>
-            <p id="tContext" class="text-sm text-slate-700 leading-relaxed"></p>
-          </div>
-          <details>
-            <summary class="text-sm text-slate-600 cursor-pointer">Preview full email</summary>
-            <textarea id="emailText" readonly class="mt-3 w-full h-72 text-sm rounded-lg border border-slate-300 p-3 font-mono bg-slate-50"></textarea>
-          </details>
-        </div>
-      </div>
-    </section>
-  </main>
+        <!-- 3 conversion signals -->
+        <section>
+          <p class="print-label text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase mb-2">Why searchers pick them</p>
+          <div id="xSignals" class="print-gap grid grid-cols-3 gap-4"></div>
+        </section>
 
-  <script>
-    var $ = function (id) { return document.getElementById(id); };
-    var state = { cfg: null, last: null };
+        <!-- 5 sentences -->
+        <section>
+          <p class="print-label text-[10px] font-bold tracking-[0.14em] text-slate-500 uppercase mb-2">What this means, in plain English</p>
+          <ol id="xSummary" class="space-y-2"></ol>
+        </section>
 
-    function syncMockNote() {
-      $('mockCompNote').classList.toggle('hidden', !$('mock').checked);
-    }
-    $('mock').addEventListener('change', syncMockNote);
-    syncMockNote();
+        <!-- Offer bar -->
+        <section id="xOffer" class="rounded-xl bg-slate-900 text-white px-5 py-4 flex flex-wrap items-center justify-between gap-4"></section>
 
-    fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
-      state.cfg = cfg;
-      var live = cfg.liveReady
-        ? cfg.rankProvider + ' ready'
-        : (cfg.rankProvider === 'mock' ? 'no live provider configured' : cfg.rankProvider + ' (missing credentials)');
-      $('providerBadge').textContent = 'Ranks: ' + live + ' · Map: ' + cfg.mapProvider + (cfg.placesReady ? ' · Places ✓' : '');
-      if (!cfg.liveReady) {
-        $('mock').checked = true;
-        $('mock').disabled = true;
-        $('mockHelp').innerHTML = 'No ranking service is set up yet, so reports use sample data. Add credentials in <a class="underline" href="/settings.html">Settings</a>.';
-      } else {
-        $('mockHelp').textContent = 'Uncheck to run 25 real lookups via ' + cfg.rankProvider + '.';
-      }
-      syncMockNote();
-    }).catch(function () {});
+        <!-- Raw data accordion -->
+        <details id="xRaw" class="no-print border-t pt-3">
+          <summary class="cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-900">▸ View raw 25-point grid audit data (optional)</summary>
+          <div id="xRawBody" class="mt-3 space-y-4 text-sm"></div>
+        </details>
+      </article>
+    </main>
+  </div>
 
-    var loadingMsgs = ['Resolving listings…', 'Building the 5 × 5 grid…', 'Checking rankings at 25 points…', 'Picking the strongest rivals…', 'Stitching the maps…', 'Rendering the comparison sheet…'];
+  <!-- ===================== Floating utility bar ===================== -->
+  <div id="utility" class="no-print hidden fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-white/95 backdrop-blur border shadow-lg rounded-2xl px-3 py-2">
+    <button id="btnPrint" class="rounded-xl bg-slate-900 text-white text-sm font-semibold px-4 py-2 hover:bg-slate-800">Export / Print PDF</button>
+    <button id="btnCopy" class="rounded-xl border border-slate-300 text-sm font-semibold px-4 py-2 hover:bg-slate-50">Copy 5-Sentence Email</button>
+    <a id="btnJson" download class="rounded-xl border border-slate-300 text-sm px-3 py-2 text-slate-600 hover:bg-slate-50">Data</a>
+  </div>
 
-    $('form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      var body = {
-        business: $('business').value,
-        location: $('location').value,
-        address: $('address').value || undefined,
-        keyword: $('keyword').value,
-        spacingMi: Number($('spacing').value),
-        competitor1: $('competitor1').value || undefined,
-        competitor2: $('competitor2').value || undefined,
-        mock: $('mock').checked,
-        coordinates: $('coordinates').value || undefined,
-        scale: $('scale1').checked ? 1 : 2
-      };
-      $('error').classList.add('hidden');
-      $('empty').classList.add('hidden');
-      $('report').classList.add('hidden');
-      $('loading').classList.remove('hidden');
-      $('submit').disabled = true;
-      $('btnText').textContent = 'Running…';
-      var i = 0;
-      $('loadingText').textContent = loadingMsgs[0];
-      var ticker = setInterval(function () {
-        i = Math.min(i + 1, loadingMsgs.length - 1);
-        $('loadingText').textContent = loadingMsgs[i];
-      }, body.mock ? 900 : 4000);
-      try {
-        var res = await fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-        render(data);
-      } catch (err) {
-        showError(err.message);
-        $('empty').classList.remove('hidden');
-      } finally {
-        clearInterval(ticker);
-        $('loading').classList.add('hidden');
-        $('submit').disabled = false;
-        $('btnText').textContent = 'Run Grid Audit';
-      }
-    });
+  <div id="toast" class="no-print toast pointer-events-none fixed bottom-24 right-5 z-50 opacity-0 translate-y-2 rounded-xl bg-slate-900 text-white text-sm font-medium px-4 py-2.5 shadow-lg"></div>
 
-    function showError(message) {
-      var isLookup = /could not find|geocode|lookup service/i.test(message);
-      $('errorTitle').textContent = isLookup ? 'We could not find that location' : 'That did not work';
-      $('errorBody').textContent = message;
-      $('error').classList.remove('hidden');
-      if (isLookup) {
-        var adv = $('coordinates').closest('details');
-        if (adv) adv.open = true;
-        $('coordinates').classList.add('ring-2', 'ring-red-400');
-        $('coordinates').focus();
-        setTimeout(function () { $('coordinates').classList.remove('ring-2', 'ring-red-400'); }, 4000);
-      }
-    }
-
-    var ROLE_STYLE = [
-      { bar: 'bg-emerald-600', tag: 'YOUR BUSINESS' },
-      { bar: 'bg-slate-800', tag: 'COMPETITOR A' },
-      { bar: 'bg-slate-500', tag: 'COMPETITOR B' }
-    ];
-
-    function rankTone(avg) {
-      return avg <= 3 ? 'text-emerald-500' : avg < 10 ? 'text-amber-500' : 'text-red-500';
-    }
-
-    function scoreboard(businesses, total) {
-      $('scoreboard').innerHTML = businesses.slice(0, 3).map(function (b, i) {
-        var m = b.metrics;
-        var style = ROLE_STYLE[i];
-        return '<div class="bg-white rounded-2xl border overflow-hidden">' +
-          '<div class="' + style.bar + ' text-white px-4 py-2">' +
-            '<p class="text-[10px] font-bold tracking-wide opacity-75">' + style.tag + '</p>' +
-            '<p class="text-sm font-semibold truncate">' + escapeHtml(b.name) + '</p>' +
-          '</div>' +
-          '<div class="p-4 grid grid-cols-3 gap-2 text-center">' +
-            '<div><p class="text-[10px] font-bold text-slate-500">AVG RANK</p><p class="text-2xl font-bold ' + rankTone(m.averageRank) + '">' + m.averageRank.toFixed(1) + '</p></div>' +
-            '<div><p class="text-[10px] font-bold text-slate-500">TOP-3</p><p class="text-2xl font-bold">' + m.top3Count + '<span class="text-sm text-slate-400">/' + total + '</span></p></div>' +
-            '<div><p class="text-[10px] font-bold text-slate-500">COVERAGE</p><p class="text-2xl font-bold">' + Math.round(m.top3Share * 100) + '%</p></div>' +
-          '</div>' +
-          (b.rating ? '<p class="px-4 pb-3 text-xs text-slate-500">' + b.rating + ' ★ · ' + (b.reviews || 0) + ' reviews' + (b.category ? ' · ' + escapeHtml(b.category) : '') + '</p>' : '') +
-        '</div>';
-      }).join('');
-    }
-
-    function escapeHtml(s) {
-      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-      });
-    }
-
-    function render(data) {
-      state.last = data;
-      var report = data.report;
-      var takeaway = data.takeaway;
-      $('reportImg').src = data.imageUrl;
-      $('detailImg').src = data.detailImageUrl;
-      $('dlPng').href = data.imageUrl;
-      $('dlDetail').href = data.detailImageUrl;
-      $('dlPdf').href = data.pdfUrl || '#';
-      $('dlPdf').classList.toggle('hidden', !data.pdfUrl);
-      $('dlJson').href = data.jsonUrl;
-      showTab('compare');
-
-      var bm = report.basemap || {};
-      var mapNote = bm.offline ? 'no map service available' : bm.provider + ' map';
-      if (bm.fellBack && !bm.offline) mapNote += ' (fell back from ' + bm.requestedProvider + ')';
-      $('meta').textContent = report.provider + ' ranks · ' + mapNote + ' · ' + (data.elapsedMs / 1000).toFixed(1) + 's';
-
-      var warn = $('mapWarn');
-      if (bm.error) {
-        warn.textContent = (bm.offline
-          ? 'No map service could be reached, so the report shows a plain pattern instead of streets. '
-          : 'Your chosen map service failed, so a working one was used instead. ') + bm.error +
-          ' — change it under Settings, section 3.';
-        warn.classList.remove('hidden');
-      } else warn.classList.add('hidden');
-
-      scoreboard(report.businesses || [], report.points.length);
-      var src = report.competitorSource;
-      $('compSource').textContent =
-        src === 'auto' ? 'Competitors were picked automatically: the two businesses that hold the most ground across your 25 points.'
-        : src === 'manual' ? 'Competitors are the two you named.'
-        : src === 'mixed' ? 'One competitor you named, one picked automatically from the results.'
-        : 'No competitors appeared in the results.';
-
-      $('tGood').textContent = takeaway.good;
-      $('tLeak').textContent = takeaway.leak;
-      $('tContext').textContent = takeaway.context;
-      $('emailText').value = takeaway.email;
-      $('report').classList.remove('hidden');
-      $('report').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function showTab(which) {
-      var compare = which === 'compare';
-      $('reportImg').classList.toggle('hidden', !compare);
-      $('detailImg').classList.toggle('hidden', compare);
-      $('tabCompare').className = 'text-sm font-medium px-3 py-2 border-b-2 ' + (compare ? 'border-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800');
-      $('tabDetail').className = 'text-sm font-medium px-3 py-2 border-b-2 ' + (compare ? 'border-transparent text-slate-500 hover:text-slate-800' : 'border-slate-900');
-    }
-    $('tabCompare').addEventListener('click', function () { showTab('compare'); });
-    $('tabDetail').addEventListener('click', function () { showTab('detail'); });
-
-    $('copyEmail').addEventListener('click', async function () {
-      if (!state.last) return;
-      var btn = $('copyEmail');
-      try {
-        await navigator.clipboard.writeText(state.last.takeaway.email);
-        btn.textContent = 'Copied ✓';
-      } catch (e) {
-        $('emailText').closest('details').open = true;
-        $('emailText').select();
-        document.execCommand('copy');
-        btn.textContent = 'Copied ✓';
-      }
-      setTimeout(function () { btn.textContent = 'Copy Email Summary'; }, 1800);
-    });
-  </script>
+  <script src="/app.js"></script>
 </body>
 </html>

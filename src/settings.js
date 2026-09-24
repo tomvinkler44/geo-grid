@@ -22,6 +22,14 @@ export const FIELDS = {
   mapboxToken: { path: ['mapboxToken'], secret: true },
   agencyName: { path: ['agencyName'] },
   agencyUrl: { path: ['agencyUrl'] },
+  // keepDefault: clearing the box restores the built-in wording rather than
+  // leaving an empty strip on every report. (Clearing a key really should
+  // clear it, so those stay as they are.)
+  offerName: { path: ['offer', 'name'], keepDefault: true },
+  offerPrice: { path: ['offer', 'price'], keepDefault: true },
+  offerTerms: { path: ['offer', 'terms'], keepDefault: true },
+  offerCta: { path: ['offer', 'cta'], keepDefault: true },
+  offerCtaUrl: { path: ['offer', 'ctaUrl'] },
   userAgent: { path: ['userAgent'] },
 };
 
@@ -29,6 +37,11 @@ const get = (obj, p) => p.reduce((o, k) => (o == null ? undefined : o[k]), obj);
 const set = (obj, p, v) => { let o = obj; for (const k of p.slice(0, -1)) o = o[k] ??= {}; o[p.at(-1)] = v; };
 
 let saved = {};
+
+/** The values config started with, before any saved settings were applied. */
+const DEFAULTS = Object.fromEntries(
+  Object.entries(FIELDS).map(([key, f]) => [key, get(config, f.path) || '']),
+);
 
 export async function loadSettings() {
   try {
@@ -66,7 +79,7 @@ export async function saveSettings(update = {}) {
     if (f.secret && v === MASK) continue;
     if (v.trim() === '') {
       delete saved[key];
-      set(config, f.path, ''); // clearing in the UI also clears the env value for this run
+      set(config, f.path, f.keepDefault ? DEFAULTS[key] : '');
     } else {
       saved[key] = v.trim();
     }

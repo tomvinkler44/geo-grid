@@ -116,23 +116,32 @@ export function rankRivals(points, exclude = []) {
  * @param {string} [input.coordinates]    "lat,lng" override for the lead
  * @param {(msg:string)=>void} [input.onProgress]
  */
-export async function runAudit(input) {
+function validate(input) {
   const business = (input.business || '').trim();
   const location = (input.location || '').trim();
   const address = (input.address || '').trim();
   const keyword = (input.keyword || '').trim();
   const spacingMi = Number(input.spacingMi ?? 0.5);
-  const log = input.onProgress || (() => {});
   if (!business) throw new Error('Business name is required');
   if (!location) throw new Error('City/State (or zip) is required');
   if (!keyword) throw new Error('Keyword is required');
   if (!SPACING_OPTIONS.includes(spacingMi)) throw new Error(`Spacing must be one of ${SPACING_OPTIONS.join(', ')} miles`);
+  return { business, location, address, keyword, spacingMi };
+}
 
-  const wanted = (input.competitors || []).map((c) => (c || '').trim()).filter(Boolean).slice(0, MAX_COMPETITORS);
+/**
+ * Step one of the two-step flow: resolve the lead and scan the grid once.
+ *
+ * The scan is the only thing that costs money, and the whole local pack is
+ * kept at every point, so competitors can be chosen *after* it and scored
+ * without paying again.
+ */
+export async function scanGrid(input) {
+  const { business, location, address, keyword, spacingMi } = validate(input);
+  const log = input.onProgress || (() => {});
   const provider = getProvider(input.mock ? 'mock' : config.rankProvider);
   const isMock = provider.name === 'mock';
 
-  // ---- Step 1: resolve the lead listing --------------------------------
   log(`Resolving "${business}" in ${location} (${provider.name})…`);
   const coords = input.coordinates ? parseCoordinates(input.coordinates) : null;
   let lead;
@@ -143,27 +152,8 @@ export async function runAudit(input) {
   }
   if (!lead.name) lead.name = business;
 
-  // ---- Step 2: resolve named rivals ------------------------------------
-  // Mock mode deliberately ignores typed rivals: it invents a market, so a
-  // real competitor's name on invented numbers would be misleading.
-  const useNamedRivals = wanted.length > 0 && !isMock;
-  let named = [];
-  if (useNamedRivals) {
-    log(`Resolving ${wanted.length} named competitor${wanted.length > 1 ? 's' : ''}…`);
-    named = await Promise.all(wanted.map(async (name) => {
-      try {
-        const r = await resolveBusiness(provider, { name, location });
-        return { ...r, name: r.name || name, requestedName: name };
-      } catch (err) {
-        log(`  could not resolve "${name}": ${err.message} — matching by name only`);
-        return { name, placeId: null, cid: null, unresolved: true, requestedName: name };
-      }
-    }));
-  }
-
-  // ---- Step 3: one scan of the grid ------------------------------------
   const points = buildGrid(lead.lat, lead.lng, spacingMi);
-  const rankAt = provider.createRanker({ business: lead, keyword, spacingMi, competitors: named });
+  const rankAt = provider.createRanker({ business: lead, keyword, spacingMi });
 
   log(`Checking ${points.length} points for "${keyword}"…`);
   let done = 0;
@@ -174,45 +164,79 @@ export async function runAudit(input) {
     return { ...p, results };
   });
 
-  // ---- Step 4: choose the two rivals to show ---------------------------
-  let competitors = named;
-  let competitorSource = useNamedRivals ? 'manual' : 'auto';
-  if (competitors.length < MAX_COMPETITORS) {
-    const auto = rankRivals(scanned, [lead, ...competitors]).slice(0, MAX_COMPETITORS - competitors.length);
-    competitors = [...competitors, ...auto.map((a) => ({ ...a, autoSelected: true }))];
-    if (named.length === 0) competitorSource = 'auto';
-    else competitorSource = 'mixed';
-  }
-  if (!competitors.length) competitorSource = 'none';
+  // Backfill anything the resolver did not give us but the results reveal.
+  backfill([lead], scanned);
 
-  // ---- Step 5: read every business out of the same results -------------
-  const businesses = [lead, ...competitors];
-  const ranked = scanned.map((p) => {
-    const ranks = businesses.map((b) => findBusinessRank(p.results, b).rank);
-    return { ...p, rank: ranks[0], ranks, matchedTitle: findBusinessRank(p.results, lead).match?.title ?? null };
-  });
+  return {
+    scannedAt: new Date().toISOString(),
+    provider: provider.name,
+    mock: isMock,
+    lead,
+    inputBusinessName: business,
+    location,
+    address,
+    keyword,
+    spacingMi,
+    points: scanned,
+  };
+}
 
-  // Ratings, categories and websites sometimes only appear in the SERP rows,
-  // so backfill anything the resolver did not already give us.
-  const fromResults = new Map();
-  for (const p of scanned) {
+/** Fill blank profile fields from whatever the SERP rows revealed. */
+function backfill(businesses, points) {
+  const byKey = new Map();
+  for (const p of points) {
     for (const r of p.results || []) {
       const key = r.placeId || (r.title || '').toLowerCase();
-      if (key && !fromResults.has(key)) fromResults.set(key, r);
+      if (key && !byKey.has(key)) byKey.set(key, r);
     }
   }
   for (const b of businesses) {
-    const hit = fromResults.get(b.placeId) || fromResults.get((b.name || '').toLowerCase());
+    const hit = byKey.get(b.placeId) || byKey.get((b.name || '').toLowerCase());
     if (!hit) continue;
     for (const f of ['rating', 'reviews', 'category', 'website']) {
       if (b[f] == null || b[f] === '') b[f] = hit[f] ?? b[f];
     }
   }
+}
+
+/**
+ * Step two: given a finished scan and the chosen rivals, read every business
+ * out of the stored results and build the report. Costs nothing extra.
+ *
+ * @param {object} scan          output of scanGrid
+ * @param {object[]} competitors up to two rivals, each {name, placeId?, cid?, ...}
+ */
+export async function finalizeAudit(scan, competitors = [], opts = {}) {
+  const log = opts.onProgress || (() => {});
+  const lead = scan.lead;
+  const chosen = competitors.filter(Boolean).slice(0, MAX_COMPETITORS);
+
+  // A rival named by hand that we have no id for is resolved so it can be
+  // matched by Place ID rather than by a fuzzy title alone.
+  const provider = getProvider(scan.mock ? 'mock' : config.rankProvider);
+  const resolved = await Promise.all(chosen.map(async (c) => {
+    if (c.placeId || c.cid || scan.mock) return c;
+    try {
+      const r = await resolveBusiness(provider, { name: c.name, location: scan.location });
+      return { ...r, ...c, placeId: r.placeId ?? null, cid: r.cid ?? null, name: c.name };
+    } catch (err) {
+      log(`  could not resolve "${c.name}": ${err.message} — matching by name only`);
+      return { ...c, unresolved: true };
+    }
+  }));
+
+  backfill(resolved, scan.points);
+  const businesses = [lead, ...resolved];
+  const ranked = scan.points.map((p) => {
+    const ranks = businesses.map((b) => findBusinessRank(p.results, b).rank);
+    return { ...p, rank: ranks[0], ranks, matchedTitle: findBusinessRank(p.results, lead).match?.title ?? null };
+  });
 
   const metrics = computeMetrics(ranked);
   const profiles = businesses.map((b, i) => ({
     role: i === 0 ? 'lead' : 'competitor',
     index: i,
+    archetype: b.archetype ?? null,
     name: b.name,
     placeId: b.placeId ?? null,
     cid: b.cid ?? null,
@@ -221,6 +245,7 @@ export async function runAudit(input) {
     address: b.address ?? '',
     website: b.website ?? '',
     category: b.category ?? '',
+    phone: b.phone ?? '',
     rating: b.rating ?? null,
     reviews: b.reviews ?? null,
     autoSelected: !!b.autoSelected,
@@ -230,16 +255,39 @@ export async function runAudit(input) {
 
   return {
     generatedAt: new Date().toISOString(),
-    provider: provider.name,
+    provider: scan.provider,
     business: lead,
-    inputBusinessName: business,
-    location,
-    address,
-    keyword,
-    spacingMi,
-    competitorSource,
+    inputBusinessName: scan.inputBusinessName,
+    location: scan.location,
+    address: scan.address,
+    keyword: scan.keyword,
+    spacingMi: scan.spacingMi,
+    competitorSource: opts.competitorSource || (resolved.every((c) => c.autoSelected) ? 'auto' : 'manual'),
     businesses: profiles,
     points: ranked,
     metrics,
   };
+}
+
+/**
+ * One-shot audit: scan, pick the two strongest rivals automatically (or use
+ * the names given), and build the report. Used by the CLI.
+ */
+export async function runAudit(input) {
+  const scan = await scanGrid(input);
+  const wanted = (input.competitors || []).map((c) => (c || '').trim()).filter(Boolean).slice(0, MAX_COMPETITORS);
+  // Mock mode invents the market, so a real rival's name must not be attached
+  // to invented numbers.
+  const named = scan.mock ? [] : wanted.map((name) => ({ name }));
+  let competitors = named;
+  let source = named.length ? 'manual' : 'auto';
+  if (competitors.length < MAX_COMPETITORS) {
+    const auto = rankRivals(scan.points, [scan.lead, ...competitors])
+      .slice(0, MAX_COMPETITORS - competitors.length)
+      .map((a) => ({ ...a, autoSelected: true }));
+    competitors = [...competitors, ...auto];
+    if (named.length) source = 'mixed';
+  }
+  if (!competitors.length) source = 'none';
+  return finalizeAudit(scan, competitors, { competitorSource: source, onProgress: input.onProgress });
 }

@@ -72,47 +72,71 @@ much faster the second time.
 
 ## Step 4 — Make your first report (1 minute)
 
-In the browser window that opened, fill in the composer on the left. It has
-three short sections.
+In the browser window that opened you will see a form on the left with four
+numbered steps along the top. It walks you through them one at a time.
 
-**A — the business you are pitching**
+**Step 1 — the business**
 
 1. Business name, for example `Pacific Coast Assisted Living`.
 2. City and state, for example `Sunnyvale, CA`.
 3. Street address is optional. Fill it in when several businesses nearby have
    similar names, so the right one is picked.
-
-**B — competitors (you can skip this)**
-
-Leave both boxes empty and the app picks the two rivals that dominate the most
-of the map. Fill them in if you already know who the client keeps losing to.
-
-**C — the search**
-
 4. The search phrase, for example `assisted living sunnyvale`.
-5. Leave the spacing on 0.5 miles.
-6. Leave **Mock mode** ticked. This invents sample rankings so you can see how
-   everything looks without paying anything.
-7. Click **Run Grid Audit** and wait a few seconds.
+5. Leave the spacing on 0.5 miles and leave **Mock mode** ticked. Mock mode
+   invents sample data so you can see how everything works without paying.
+6. Click **Scan market & find competitors**. This is the part that takes a
+   moment, because it searches from 25 different points.
 
-You get a comparison sheet showing the business beside its two rivals, a tab for
-its own detailed grid, the numbers underneath, the written client summary, and
-buttons to download the images, a PDF, and the email text.
+**Step 2 — the competitors**
 
-The comparison sheet is the one to attach to an email. It makes the point on its
-own: your client's grid is mostly orange and red, theirs is mostly green.
+Two cards appear. The app has picked them for you:
 
-Make two or three of these to get a feel for it. They cost nothing.
+- **Market Dominator** is the big name in the area: the most reviewed of the
+  businesses that show up almost everywhere on the map.
+- **Nearby Direct Peer** is a rival round the corner that is still ahead of
+  your client.
 
----
+Each card shows the review count, the star rating, and one line saying why it
+was chosen. If you already know who the client keeps losing to, click
+**change** on either card and type a name instead.
+
+**Step 3 — generate**
+
+Click **Approve Rivals & Generate Executive Audit**. This is quick, because it
+reuses the scan from step 2 rather than running another one. You are never
+charged twice.
+
+**Step 4 — the report**
+
+A one-page audit appears on the right:
+
+- A big percentage at the top: how much of the local market puts them in the
+  top three.
+- Three maps side by side: your client, then the two rivals.
+- Three cards explaining why searchers pick the rivals.
+- Five numbered sentences in plain English.
+- Your offer and price at the bottom.
+
+Bottom right of the screen there are two buttons. **Export / Print PDF** opens
+your printer dialog, already laid out to fit one page; choose "Save as PDF" to
+get a file to attach. **Copy 5-Sentence Email** puts the written pitch on your
+clipboard, ready to paste into an email.
+
+To change the offer and price at the bottom of the report, open **⚙ Settings**
+and scroll to section 5.
 
 ## Step 5 — Switch on real rankings (when you are ready)
 
 Mock reports look right but the numbers are invented. To get real Google rankings
 you need an account with a data provider. This is the only part that costs money.
 
-1. Go to **https://app.dataforseo.com** and create an account. Add a small amount
-   of credit, $20 goes a long way. Each report costs about 5 cents.
+1. Create an account with a data provider. **SerpApi** at https://serpapi.com is
+   the one to pick if you want all three cards on the report filled in, because
+   it can also read review dates and owner replies in a single call.
+   **DataForSEO** at https://app.dataforseo.com is cheaper per report but its
+   reviews lookup is slower and sometimes times out, in which case two of the
+   three cards will say "not measured" instead of showing a number.
+   Either way, add a small amount of credit to start.
 2. In DataForSEO, open the **API Access** page. You will see your login email and
    an **API password**. This is different from the password you log in with.
 3. Back in the Geo-Grid app, click the **⚙ Settings** button in the top-right corner.

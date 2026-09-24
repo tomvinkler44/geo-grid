@@ -19,4 +19,12 @@ export const config = {
   outputDir: env('OUTPUT_DIR', 'output'),
   /** Concurrency for rank lookups against paid APIs. */
   rankConcurrency: Number(env('RANK_CONCURRENCY', '4')),
+  /** The offer strip at the foot of the executive report. */
+  offer: {
+    name: env('OFFER_NAME', 'Automated Review Engine & Geo-Expansion'),
+    price: env('OFFER_PRICE', '$297/mo'),
+    terms: env('OFFER_TERMS', 'flat, no contract'),
+    cta: env('OFFER_CTA', 'Accept Proposal & Start Engine'),
+    ctaUrl: env('OFFER_CTA_URL', ''),
+  },
 };

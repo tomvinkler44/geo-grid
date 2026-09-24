@@ -1,16 +1,15 @@
 # Geo-Grid Rank Report
 
-Generates a 5 × 5 (25-point) local SEO geo-grid ranking report and turns it into an outreach
-asset: a three-panel comparison sheet putting the business beside two rivals, a detailed grid
-of its own, and a plain-English "client takeaway" you can paste into an email.
+Turns a 5 × 5 (25-point) local SEO geo-grid scan into a one-page executive audit you can print
+and send: the prospect's map beside two rivals, three conversion signals, and five plain-English
+sentences that say what the numbers mean for revenue.
 
 **One scan, three panels.** A local-pack lookup at a grid point returns the whole pack, so the
-lead business and both rivals are read out of the *same* 25 calls. The comparison sheet costs
-exactly what a single-business audit costs.
+prospect and both rivals are read out of the *same* 25 calls. Picking competitors happens after
+the scan, from the stored results, so swapping one costs nothing.
 
-![example](docs/example.png)
-
-Runs as a small Express web app **or** a one-line CLI. No build step, no database.
+Runs as a small Express web app **or** a one-line CLI. No database, and one small CSS build step
+that `npm start` handles for you.
 
 **Not technical?** Read [GETTING-STARTED.md](GETTING-STARTED.md): double-click launchers for
 Mac/Windows, or a one-click Render deploy. All keys are entered on the in-app **Settings** page.
@@ -23,32 +22,28 @@ cp .env.example .env        # defaults to mock ranks + OpenStreetMap basemap, no
 npm start                   # http://localhost:3000
 ```
 
-Fill in the composer, leave **Mock mode** checked, hit **Run Grid Audit**. You get the
-comparison sheet, your own detailed grid, the scoreboard, the takeaway text, a
-*Copy Email Summary* button and PNG/PDF downloads.
+The app walks through four steps:
 
-### The composer
-
-| Section | Fields |
+| Step | What happens |
 | --- | --- |
-| **A · The business** | Name, City/State (or zip), optional street address. The address is used to pin the exact listing when several share a name. |
-| **B · Competitors** | Two optional names. Leave them blank and the two businesses holding the most ground across your 25 points are picked automatically. |
-| **C · Parameters** | Keyword, grid spacing (0.5 / 1 / 2 miles), and an advanced `lat,lng` override. |
+| **1 · Business details** | Name, city/state or zip, optional street address (pins the exact listing when names collide), keyword, grid spacing. |
+| **2 · Recommended rivals** | The 25-point scan runs once, then two archetypes are proposed: the **Market Dominator** (most reviewed of the widest-reaching businesses) and the **Nearby Direct Peer** (closest rival that is at least level with the prospect). Each card shows review count, rating and why it was chosen. Either can be overridden with a typed name. |
+| **3 · Generate** | *Approve Rivals & Generate Executive Audit*. Re-reads the stored scan, fetches review signals, draws the three maps. No second scan. |
+| **4 · Executive audit** | The deliverable: visibility badge, 3-way heatmap, three signal cards, five numbered sentences, your offer strip. A floating bar offers **Export / Print PDF** (one US Letter page) and **Copy 5-Sentence Email**. Raw coordinates and per-point ranks sit in a collapsed accordion. |
 
-Websites, ratings, review counts and primary categories are pulled in while the listings are
-resolved, and fill the side-by-side table. Anything a provider does not return shows as `—`
-rather than being invented.
+### What the three signal cards need
 
-API keys can go in `.env` **or** in the in-app **Settings** page (saved to `data/settings.json`,
-which overrides `.env`). **Settings → Check setup** runs one test call per configured service.
-Set `APP_PASSWORD` to put the whole app behind a password when hosting it.
+| Card | Source | Available when |
+| --- | --- | --- |
+| **Total Google reviews** | the local-pack result itself | always |
+| **Reviews in the last 30 days** | a reviews endpoint | SerpApi (one call) or DataForSEO (queued task) |
+| **Owner reply rate** | a reviews endpoint | SerpApi or DataForSEO only — **Google Places does not expose owner replies at all** |
 
-### Hosting
+A signal that could not be measured renders as `not measured` with the reason, and sentence four
+drops the claim rather than reporting a zero nobody checked. This matters: telling a real prospect
+they never answer reviews when the app simply did not look is worse than an empty card.
 
-`Dockerfile` and `render.yaml` are included. On Render: New + → Blueprint → this repo. The
-blueprint generates an `APP_PASSWORD` for you.
-
-### CLI
+### CLI### CLI
 
 ```bash
 node src/cli.js --business "Pacific Coast Heating & AC" --location "San Jose, CA" \
@@ -141,6 +136,21 @@ returns `{ id, imageUrl, pdfUrl, jsonUrl, report, takeaway }`. `report.points[]`
 `row, col, lat, lng, rank, bearing, distanceMi, results[0..4]`. `GET /api/config` tells the UI
 what is configured.
 
+## Front end
+
+No CDN at runtime. Tailwind is compiled to `public/tailwind.css` and Inter is served from
+`public/fonts`, because two separate CDN outages (map tiles, then geocoders) already cost this
+project a working afternoon. Rebuild the stylesheet after editing markup or class names in JS:
+
+```bash
+npm run build:css
+```
+
+`npm start` builds it automatically if it is missing. The print layout is enforced by an
+`@media print` block that hides the composer and floating bar and tightens type so the audit
+lands on a single US Letter page; it is verified in CI-style by rendering the page through a
+headless browser's PDF export and asserting the page count.
+
 ## Project layout
 
 ```
@@ -151,9 +161,14 @@ src/audit.js         orchestration + metrics
 src/geometry.js      grid math
 src/mercator.js      Web Mercator helpers
 src/basemap.js       tile stitching / Mapbox static / offline fallback
-src/render.js        detail grid renderer (canvas)
-src/render-compare.js three-panel comparison sheet
-src/draw.js          shared canvas primitives and palette
+src/render.js         detail grid renderer (canvas)
+src/render-compare.js three-panel comparison sheet (PNG, for email)
+src/render-panel.js   one grid panel per business, for the HTML report
+src/draw.js           shared canvas primitives and palette
+src/candidates.js     archetype selection for step 2
+src/executive.js      visibility badge, signal cards, the five sentences
+src/scanstore.js      holds a scan between step 2 and step 3
+src/providers/reviews.js  review velocity and owner reply rate
 src/takeaway.js      plain-English copy generator
 src/pdf.js           PDF export
 src/providers/       mock, dataforseo, serpapi, places (resolution), geocode, match
