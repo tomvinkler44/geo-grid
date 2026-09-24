@@ -117,20 +117,47 @@
       </section>
 
       <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
-        <h2 class="font-semibold">5. The offer on the report</h2>
-        <p class="text-sm text-slate-600">This is the strip at the foot of every executive audit. Change it to your own package and price.</p>
+        <h2 class="font-semibold">5. The offer</h2>
+        <p class="text-sm text-slate-600">One definition drives the audit, the checkout page and both emails, so they always match. Write <code>{price}</code> anywhere to insert the price.</p>
         <div class="grid sm:grid-cols-2 gap-4">
-          <label class="block sm:col-span-2"><span class="text-sm font-medium">Offer name</span>
-            <input name="offerName" placeholder="Automated Review Engine &amp; Geo-Expansion" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Service name</span>
+            <input name="offerName" placeholder="Local Review Engine &amp; Geo-Expansion" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
           <label class="block"><span class="text-sm font-medium">Price</span>
             <input name="offerPrice" placeholder="$297/mo" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-          <label class="block"><span class="text-sm font-medium">Terms</span>
-            <input name="offerTerms" placeholder="flat, no contract" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
           <label class="block"><span class="text-sm font-medium">Button text</span>
-            <input name="offerCta" placeholder="Accept Proposal &amp; Start Engine" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-          <label class="block"><span class="text-sm font-medium">Button link <span class="font-normal text-slate-400">optional</span></span>
-            <input name="offerCtaUrl" placeholder="https://calendly.com/you/intro" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <span class="text-xs text-slate-500">Leave blank and the button is shown but not clickable.</span></label>
+            <input name="offerCta" placeholder="Start 60-Day Review Engine — {price}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Line under the button</span>
+            <input name="offerMicrocopy" placeholder="{price} flat · No contracts · 60-day guarantee · 15-min setup" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Guarantee</span>
+            <input name="offerGuarantee" placeholder="60-Day Momentum Guarantee: More reviews and more green pins …" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">Text before the first colon becomes the heading on the checkout page.</span></label>
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Stripe Payment Link</span>
+            <input name="stripeCheckoutUrl" placeholder="https://buy.stripe.com/…" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">The checkout button goes here, tagged with the audit id so each payment can be matched to its audit. Until it is set, the button emails you instead.</span></label>
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Public site address</span>
+            <input name="publicBaseUrl" placeholder="https://promoflix.ai" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">Where the button on a printed audit points. It must be where this app is publicly hosted — a prospect cannot open localhost.</span></label>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
+        <h2 class="font-semibold">6. Sender identity</h2>
+        <p class="text-sm text-slate-600">Printed on every audit and signed on every email.</p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block"><span class="text-sm font-medium">Company</span>
+            <input name="senderCompany" placeholder="Promoflix" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Your name</span>
+            <input name="senderName" placeholder="Tom Vinkler" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Email</span>
+            <input name="senderEmail" placeholder="hello@promoflix.ai" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Phone</span>
+            <input name="senderPhone" placeholder="(408) 555-0199" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">555-01xx numbers are reserved for fiction and never connect. Use your real line.</span></label>
+          <label class="block"><span class="text-sm font-medium">City, State</span>
+            <input name="senderCityState" placeholder="Santa Clara, CA" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Full postal address — required for email</span>
+            <input name="senderPostalAddress" placeholder="123 Main St, Suite 4, Santa Clara, CA 95050" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">CAN-SPAM requires a valid physical postal address in commercial email: a street address, P.O. box, or registered private mailbox. A city alone does not qualify.</span></label>
         </div>
       </section>
 

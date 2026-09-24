@@ -12,13 +12,14 @@
  */
 import { geocode, geocodeBusiness } from './geocode.js';
 import { haversineMi, offsetLatLng, buildGrid } from '../geometry.js';
+import { WEAK_MAX } from '../ranks.js';
 
 /**
  * Scenario A targets, out of 25 points: green pins (rank 1-3) for each of the
- * three panels, plus how many points the lead should be invisible at (10+).
+ * three panels, plus how many points the lead should be invisible at (11+).
  * The red edge is the whole point of the sheet, so it is calibrated too.
  */
-export const SCENARIO_A = { lead: 6, rivalA: 18, rivalB: 15, leadInvisible: 7 };
+export const SCENARIO_A = { lead: 4, rivalA: 18, rivalB: 10, leadInvisible: 7 };
 
 function seedFrom(str) {
   let h = 2166136261;
@@ -38,7 +39,8 @@ const CATEGORIES = [
   { re: /electric/i, words: ['Electric', 'Electrical Services', 'Power & Light'], category: 'Electrician' },
   { re: /dent|orthodon/i, words: ['Dental', 'Family Dentistry', 'Dental Care', 'Smiles'], category: 'Dentist' },
   { re: /law|attorney|lawyer|injury/i, words: ['Law Group', 'Legal', 'Law Offices', 'Injury Lawyers'], category: 'Law firm' },
-  { re: /landscap|lawn|tree/i, words: ['Landscaping', 'Lawn Care', 'Tree Service'], category: 'Landscaper' },
+  { re: /\btree|arborist|stump/i, words: ['Tree Service', 'Tree Care', 'Arborists', 'Tree & Stump', 'Tree Experts'], category: 'Tree service' },
+  { re: /landscap|lawn/i, words: ['Landscaping', 'Lawn Care', 'Tree Service'], category: 'Landscaper' },
   { re: /pest|exterminat/i, words: ['Pest Control', 'Exterminators'], category: 'Pest control service' },
   { re: /clean|maid|janitor/i, words: ['Cleaning', 'Maids', 'Cleaning Services'], category: 'House cleaning service' },
   { re: /auto|mechanic|brake|tire|oil change/i, words: ['Auto Repair', 'Automotive', 'Auto Care'], category: 'Auto repair shop' },
@@ -80,7 +82,7 @@ function countsFor(market, grid, index) {
     const order = rankPoint(market, grid[p], p);
     const pos = order.findIndex((o) => o.b.index === index);
     if (pos >= 0 && pos < 3) green++;
-    if (pos < 0 || pos >= 9) invisible++;
+    if (pos < 0 || pos >= WEAK_MAX) invisible++;
   }
   return { green, invisible };
 }
@@ -103,7 +105,7 @@ function calibrate(market, grid) {
     const order = a.green > b.green ? 0 : 6;
     const cost = Math.abs(l.green - SCENARIO_A.lead) + Math.abs(a.green - SCENARIO_A.rivalA) +
       Math.abs(b.green - SCENARIO_A.rivalB) + order +
-      Math.abs(l.invisible - SCENARIO_A.leadInvisible) * 1.1;
+      Math.abs(l.invisible - SCENARIO_A.leadInvisible) * 0.45;
     return { cost, sl, sa, sb, gl: l.green, ga: a.green, gb: b.green, li: l.invisible };
   };
 
@@ -136,7 +138,8 @@ function calibrate(market, grid) {
 
 function buildMarket({ business, keyword, spacingMi }) {
   const rand = rng(seedFrom(`${business.name}|${keyword}`.toLowerCase()));
-  const cityShort = (business.city || '').split(',')[0].trim();
+  const cityShort = (business.city || '').split(',')[0].trim()
+    .replace(/\S+/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
   const cat = categoryFor(keyword);
   const names = competitorNames(keyword, cityShort, rand, 26);
 
@@ -216,12 +219,13 @@ export const mockProvider = {
       lng: geo.lng,
       placeId: `mock_${seed.toString(36)}`,
       cid: String(seed),
-      address: exact ? geo.displayName : `${city.displayName} (approximate — city centre)`,
+      address: exact ? geo.displayName : '',
       city: city.city || location,
       rating: +(4.0 + rand() * 0.6).toFixed(1),
       reviews: 60 + Math.floor(rand() * 260),
       website: `https://www.${name.toLowerCase().replace(/[^a-z0-9]+/g, '')}.com`,
       approximate: !exact,
+      verifiedFields: ['address', 'phone', 'hours'],
       source: 'mock',
     };
   },

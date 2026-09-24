@@ -183,8 +183,8 @@ export async function renderReport(report, opts = {}) {
   let lx = M;
   const items = [
     [COLORS.green, 'Ranks 1–3 · in the Map Pack'],
-    [COLORS.amber, 'Ranks 4–9 · visible after a click'],
-    [COLORS.red, 'Rank 10+ · effectively invisible'],
+    [COLORS.amber, 'Ranks 4–10 · weak'],
+    [COLORS.red, 'Rank 11+ · invisible'],
   ];
   ctx.font = `500 14px ${FONT}`;
   for (const [color, text] of items) {

@@ -108,18 +108,21 @@ charged twice.
 
 **Step 4 — the report**
 
+Before you generate, you can click **Copy permission outreach email** in step 2. That is the short first email asking the owner whether they'd like the report. Send that first, and the audit once they say yes.
+
 A one-page audit appears on the right:
 
 - A big percentage at the top: how much of the local market puts them in the
   top three.
 - Three maps side by side: your client, then the two rivals.
 - Three cards explaining why searchers pick the rivals.
-- Five numbered sentences in plain English.
+- Four short findings and the fix, in plain English.
+- A dark bar at the bottom with your offer and a button that opens the prospect's personal checkout page.
 - Your offer and price at the bottom.
 
 Bottom right of the screen there are two buttons. **Export / Print PDF** opens
 your printer dialog, already laid out to fit one page; choose "Save as PDF" to
-get a file to attach. **Copy 5-Sentence Email** puts the written pitch on your
+get a file to attach; the button inside it stays clickable. **Copy Report Email** puts the written pitch on your
 clipboard, ready to paste into an email.
 
 To change the offer and price at the bottom of the report, open **⚙ Settings**

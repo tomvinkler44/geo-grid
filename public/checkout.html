@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex" />
+  <title>Activate the Review Engine</title>
+  <link rel="stylesheet" href="/tailwind.css">
+  <style>
+    @font-face { font-family: Inter; font-weight: 400; font-display: swap; src: url('/fonts/Inter-Regular.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 500; font-display: swap; src: url('/fonts/Inter-Medium.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 600; font-display: swap; src: url('/fonts/Inter-SemiBold.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 700; font-display: swap; src: url('/fonts/Inter-Bold.ttf') format('truetype'); }
+    @font-face { font-family: Inter; font-weight: 800; font-display: swap; src: url('/fonts/Inter-Bold.ttf') format('truetype'); }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .faq-plus { transform: rotate(45deg); }
+    :focus-visible { outline: 2px solid #34d399; outline-offset: 2px; border-radius: 6px; }
+  </style>
+</head>
+<body class="bg-[#0a1433] text-slate-100 min-h-screen antialiased">
+  <main class="max-w-xl mx-auto px-4 py-8 sm:py-12 space-y-5">
+
+    <!-- Context -->
+    <header class="text-center space-y-3">
+      <span class="inline-block text-[10px] font-bold tracking-[0.16em] text-emerald-300 bg-emerald-400/10 border border-emerald-400/30 rounded-full px-3 py-1">LOCAL VISIBILITY AUDIT CONTINUATION</span>
+      <h1 id="title" class="text-2xl sm:text-3xl font-extrabold leading-tight text-balance">Activate the Review Engine</h1>
+      <div id="tracker" class="hidden mx-auto max-w-md rounded-2xl bg-slate-900/80 border border-slate-800 px-4 py-3 text-sm">
+        <div class="flex items-center justify-center gap-3 flex-wrap">
+          <span class="text-slate-400">Current Top-3 Pack:</span>
+          <span class="font-bold text-red-300"><span id="curr">–</span>/<span id="total">25</span> spots</span>
+          <span class="text-slate-500" aria-hidden="true">→</span>
+          <span class="text-slate-400">60-Day Goal:</span>
+          <span class="font-bold text-emerald-300"><span id="goal">15</span>+/<span id="total2">25</span> spots</span>
+        </div>
+      </div>
+      <p id="subhead" class="text-slate-300 text-sm sm:text-base">Close the gap without learning new software or signing contracts.</p>
+    </header>
+
+    <!-- Offer card -->
+    <section class="rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl shadow-black/30 overflow-hidden">
+      <div class="px-5 pt-5 pb-4 border-b border-slate-800 flex items-start justify-between gap-4">
+        <div>
+          <p class="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">Your plan</p>
+          <h2 id="offerName" class="text-lg font-bold leading-snug mt-1">Local Review Engine &amp; Geo-Expansion</h2>
+        </div>
+        <p class="text-right shrink-0"><span id="price" class="text-2xl font-extrabold">$297</span><span id="per" class="block text-xs text-slate-400">per month</span></p>
+      </div>
+
+      <ul id="features" class="px-5 py-4 space-y-3.5 text-sm"></ul>
+
+      <!-- Guarantee -->
+      <div class="mx-5 mb-5 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4">
+        <p id="guaranteeTitle" class="font-bold text-emerald-300 text-sm">60-Day Momentum Guarantee</p>
+        <p id="guaranteeBody" class="text-sm text-slate-200 mt-1"></p>
+      </div>
+
+      <div class="px-5 pb-5">
+        <a id="buy" href="#" class="block w-full text-center rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold py-4 px-4 text-base transition-colors">
+          <span id="buyText">Start 60-Day Review Engine — $297/mo</span> <span aria-hidden="true">→</span>
+        </a>
+        <p id="checkoutMicro" class="text-center text-xs text-slate-400 mt-2.5">Instant 15-Min Setup · No Setup Fees · Month-to-Month</p>
+        <p id="noStripe" class="hidden text-center text-xs text-amber-300 mt-2">Online checkout is being set up. The button above emails us and we'll send your secure payment link today.</p>
+      </div>
+    </section>
+
+    <!-- After you pay -->
+    <section class="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+      <h2 class="font-bold">What happens after you pay</h2>
+      <ol class="mt-4 space-y-4 text-sm">
+        <li class="flex gap-3">
+          <span class="shrink-0 w-7 h-7 rounded-full bg-slate-800 text-emerald-300 grid place-items-center text-xs font-bold">1</span>
+          <p><b class="text-slate-100">Manager invite <span class="font-normal text-slate-400">(2 mins)</span>.</b> <span class="text-slate-300">You grant temporary Manager access to your Google Business Profile. You remain 100% Owner and can revoke access anytime with one click.</span></p>
+        </li>
+        <li class="flex gap-3">
+          <span class="shrink-0 w-7 h-7 rounded-full bg-slate-800 text-emerald-300 grid place-items-center text-xs font-bold">2</span>
+          <p><b class="text-slate-100">Turnkey setup <span class="font-normal text-slate-400">(24 hrs)</span>.</b> <span class="text-slate-300">We optimize your service tags and connect your review text flow.</span></p>
+        </li>
+        <li class="flex gap-3">
+          <span class="shrink-0 w-7 h-7 rounded-full bg-slate-800 text-emerald-300 grid place-items-center text-xs font-bold">3</span>
+          <p><b class="text-slate-100">Day 30 progress scan.</b> <span class="text-slate-300">We deliver your first updated 25-pin heatmap so you can see new green pins.</span></p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- FAQ -->
+    <section class="rounded-2xl bg-slate-900 border border-slate-800 p-5">
+      <h2 class="font-bold mb-2">Questions owners ask</h2>
+      <div id="faq" class="divide-y divide-slate-800"></div>
+    </section>
+
+    <footer id="footer" class="text-center text-xs text-slate-400 pt-2 pb-6 space-y-1"></footer>
+  </main>
+
+  <script src="/checkout.js"></script>
+</body>
+</html>

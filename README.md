@@ -29,7 +29,7 @@ The app walks through four steps:
 | **1 · Business details** | Name, city/state or zip, optional street address (pins the exact listing when names collide), keyword, grid spacing. |
 | **2 · Recommended rivals** | The 25-point scan runs once, then two archetypes are proposed: the **Market Dominator** (most reviewed of the widest-reaching businesses) and the **Nearby Direct Peer** (closest rival that is at least level with the prospect). Each card shows review count, rating and why it was chosen. Either can be overridden with a typed name. |
 | **3 · Generate** | *Approve Rivals & Generate Executive Audit*. Re-reads the stored scan, fetches review signals, draws the three maps. No second scan. |
-| **4 · Executive audit** | The deliverable: visibility badge, 3-way heatmap, three signal cards, five numbered sentences, your offer strip. A floating bar offers **Export / Print PDF** (one US Letter page) and **Copy 5-Sentence Email**. Raw coordinates and per-point ranks sit in a collapsed accordion. |
+| **4 · Executive audit** | One US Letter page: a comparison headline ("You're in Google's top 3 for 4 of 25 nearby searches. Summit is in 18."), the 3-way heatmap with legend, three signal cards, four findings plus the fix, and a dark CTA bar whose button is a real link into the personalized checkout. A floating bar offers **Export / Print PDF**, **Copy Report Email** and **Copy Outreach Email**. Raw coordinates sit in a collapsed accordion. |
 
 ### What the three signal cards need
 
@@ -136,6 +136,32 @@ returns `{ id, imageUrl, pdfUrl, jsonUrl, report, takeaway }`. `report.points[]`
 `row, col, lat, lng, rank, bearing, distanceMi, results[0..4]`. `GET /api/config` tells the UI
 what is configured.
 
+## Checkout and compliance
+
+Each audit gets a slug. The printed button links to
+`PUBLIC_BASE_URL/audit/<slug>/activate?business=…&currPins=…&leader=…&niche=…`, and the plain-text
+fallback `promoflix.ai/audit/<slug>` works on its own because a short public summary is saved per
+audit. The checkout page, its two small APIs, the stylesheet and fonts are exempt from
+`APP_PASSWORD`, so a prospect never sees the admin prompt; everything else stays gated. Values from
+the URL are inserted as text only. The buy button goes to `STRIPE_CHECKOUT_URL` with
+`client_reference_id=<slug>` so each payment can be matched to its audit; until that is set it opens
+an email instead.
+
+Guard rails built in, each covered by a test:
+
+- **Review solicitation is ungated.** Every customer gets the same link. The FAQ answer about bad
+  reviews was rewritten, because "checking in first" before sending the review link is review
+  gating, which Google's review policy prohibits and the FTC treats as potentially deceptive.
+- **The outreach email** has a factual subject, a signature, and a reply-"no" opt-out, and the app
+  warns until `SENDER_POSTAL_ADDRESS` is set, since CAN-SPAM requires a physical postal address and
+  a city alone does not qualify. It never claims a review gap or "right near you" that the data
+  does not support.
+- **Nothing unmeasured is asserted.** "Address, phone, and hours are verified" only appears for
+  fields a resolver confirmed; the reply-rate finding is swapped for a measured one when replies
+  were not read.
+- **Settings → Check setup** flags the launch blockers: no postal address, a 555-01xx phone number,
+  a checkout link pointing at localhost, and no Stripe link.
+
 ## Front end
 
 No CDN at runtime. Tailwind is compiled to `public/tailwind.css` and Inter is served from
@@ -166,7 +192,12 @@ src/render-compare.js three-panel comparison sheet (PNG, for email)
 src/render-panel.js   one grid panel per business, for the HTML report
 src/draw.js           shared canvas primitives and palette
 src/candidates.js     archetype selection for step 2
-src/executive.js      visibility badge, signal cards, the five sentences
+src/executive.js      headline, signal cards, the four findings + fix, both emails
+src/niches.js         industry vocabulary (tree services, assisted living, generic)
+src/offer.js          the one offer/sender definition, and audit links
+src/ranks.js          rank bands: 1–3 visible, 4–10 weak, 11+ invisible
+src/auditstore.js     public per-audit summaries for the short checkout link
+public/checkout.*     the prospect-facing checkout page
 src/scanstore.js      holds a scan between step 2 and step 3
 src/providers/reviews.js  review velocity and owner reply rate
 src/takeaway.js      plain-English copy generator

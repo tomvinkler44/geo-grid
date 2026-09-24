@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { summarize, unmeasured, WINDOW_DAYS } from '../src/providers/reviews.js';
 import { recommendCompetitors, collectCandidates } from '../src/candidates.js';
-import { buildSignals, buildSummary, keywordCoverage } from '../src/executive.js';
+import { buildSignals, buildNarrative, buildHeadline, buildOutreachEmail, formatLocation, keywordCoverage } from '../src/executive.js';
 import { scanGrid, finalizeAudit } from '../src/audit.js';
 
-const OFFER = { name: 'Review Engine', price: '$297/mo', terms: 'flat, no contract', cta: 'Start' };
+const OFFER = { name: 'Local Review Engine & Geo-Expansion', price: '$297/mo', cta: 'Start 60-Day Review Engine — $297/mo' };
 const BASE = {
   business: 'Pacific Coast Assisted Living',
   location: 'Sunnyvale, CA',
@@ -84,38 +84,122 @@ test('the lead is never recommended as its own competitor', async () => {
   assert.ok(!candidates.some((c) => c.name === scan.lead.name));
 });
 
-/* --------------------------- the five sentences ---------------------------- */
+/* --------------------- the four findings and the fix ---------------------- */
 
-test('the five sentences are numbered, titled and non-empty', async () => {
+async function mockReport() {
   const scan = await scanGrid(BASE);
   const { dominator, peer } = recommendCompetitors(scan.points, scan.lead);
-  const report = await finalizeAudit(scan, [dominator, peer]);
+  return finalizeAudit(scan, [dominator, peer].filter(Boolean));
+}
+
+test('the narrative is four numbered findings plus the fix', async () => {
+  const report = await mockReport();
   const signals = report.businesses.map((b, i) => summarize(
     [{ time: Date.now() - 5 * 86400000, hasOwnerReply: i > 0 }],
     { totalReviews: b.reviews, source: 'mock', sampleIsComplete: false },
   ));
-  const summary = buildSummary({ report, signals, offer: OFFER });
-  assert.equal(summary.length, 5);
-  summary.forEach((s, i) => {
-    assert.equal(s.n, i + 1);
-    assert.ok(s.title && s.text.length > 40, `sentence ${i + 1} should be substantial`);
+  const { findings, fix } = buildNarrative({ report, signals, offer: OFFER, niche: 'assisted-living' });
+  assert.equal(findings.length, 4);
+  findings.forEach((f, i) => {
+    assert.equal(f.n, i + 1);
+    assert.ok(f.title && f.text.length > 30, `finding ${i + 1} should be substantial`);
   });
-  assert.match(summary[4].text, /Review Engine/, 'the fix names the configured offer');
+  assert.equal(findings[0].title, 'Profile Basics');
+  assert.equal(findings[1].title, 'The Distance Drop');
+  assert.equal(fix.title, 'The Turnkey Fix');
+  assert.match(fix.text, /family tour or intake consultation/, 'the fix uses the niche vocabulary');
+  assert.match(fix.text, /\$297\/mo/);
 });
 
-test('sentence four does not claim a reply rate that was never measured', async () => {
-  const scan = await scanGrid(BASE);
-  const { dominator, peer } = recommendCompetitors(scan.points, scan.lead);
-  const report = await finalizeAudit(scan, [dominator, peer]);
-  const summary = buildSummary({
-    report,
-    signals: report.businesses.map((b) => unmeasured(b.reviews)),
-    offer: OFFER,
+test('finding four never claims a reply rate that was not measured', async () => {
+  const report = await mockReport();
+  const { findings } = buildNarrative({
+    report, signals: report.businesses.map((b) => unmeasured(b.reviews)), offer: OFFER, niche: 'tree-services',
   });
-  const leak = summary[3].text;
-  assert.ok(!/owner reply/i.test(leak), 'must not assert replies when none were measured');
-  assert.ok(!/\b0%\b/.test(leak), 'must not report a zero it never checked');
-  assert.ok(leak.length > 40, 'it should still say something useful');
+  const four = findings[3];
+  assert.notEqual(four.title, 'Unanswered Reviews & Inactivity', 'swapped for a finding that was measured');
+  assert.ok(!/owner reply/i.test(four.text));
+  assert.ok(!/\b0%/.test(four.text));
+});
+
+test('profile basics only claims fields a resolver confirmed', async () => {
+  const report = await mockReport();
+  report.business.verifiedFields = [];
+  const { findings } = buildNarrative({ report, signals: report.businesses.map((b) => unmeasured(b.reviews)), offer: OFFER });
+  assert.ok(!/verified/i.test(findings[0].text), 'nothing was verified, so nothing is claimed');
+  report.business.verifiedFields = ['address', 'phone', 'hours'];
+  const again = buildNarrative({ report, signals: report.businesses.map((b) => unmeasured(b.reviews)), offer: OFFER });
+  assert.match(again.findings[0].text, /^Address, phone, and hours are properly verified/);
+});
+
+test('the headline compares the prospect with the rival holding the most top-3 spots', async () => {
+  const report = await mockReport();
+  const h = buildHeadline(report);
+  const lead = report.businesses[0].metrics.top3Count;
+  const best = Math.max(...report.businesses.slice(1).map((b) => b.metrics.top3Count));
+  assert.match(h.text, new RegExp(`top 3 for ${lead} of 25 nearby searches`));
+  assert.ok(h.text.includes(`is in ${best}.`), h.text);
+  assert.match(h.sub, /% your coverage vs\. \d+% market leader/);
+});
+
+test('locations are formatted US-style with no resolver notes', () => {
+  assert.equal(formatLocation('sunnyvale,  ca'), 'Sunnyvale, CA');
+  assert.equal(formatLocation('SAN JOSE, California'), 'San Jose, California');
+  assert.ok(!/approximate|centre/.test(formatLocation('Sunnyvale, CA', { address: 'x (approximate — city centre)' })));
+});
+
+/* -------------------------------- compliance -------------------------------- */
+
+const SENDER = {
+  company: 'Promoflix', name: 'Tom Vinkler', cityState: 'Santa Clara, CA', postalAddress: '',
+  email: 'hello@promoflix.ai', phone: '(408) 555-0199', canSpamAddressReady: false,
+};
+
+test('the outreach email has an honest subject, the sender, and a working opt-out', () => {
+  const e = buildOutreachEmail({
+    lead: { name: 'Oak & Ash Tree Co', reviews: 201, lat: 32.78, lng: -96.8 },
+    rivals: [{ name: 'Summit Tree Service', reviews: 753, lat: 32.79, lng: -96.81 }],
+    location: 'Dallas, TX', ownerName: 'Maria', niche: 'tree-services', sender: SENDER,
+  });
+  assert.equal(e.subject, 'Oak & Ash Tree Co vs Summit Tree Service on Google');
+  assert.match(e.body, /^Hi Maria,/);
+  assert.match(e.body, /tree service companies in Dallas/);
+  assert.match(e.body, /you have 201 reviews while Summit Tree Service right near you has 753/);
+  assert.match(e.body, /Tom Vinkler\nPromoflix/);
+  assert.match(e.body, /reply "no" and I won't follow up/, 'CAN-SPAM needs a way to opt out');
+});
+
+test('the outreach email warns until a real postal address is configured', () => {
+  const args = {
+    lead: { name: 'A', reviews: 10 }, rivals: [{ name: 'B', reviews: 90 }],
+    location: 'Dallas, TX', niche: 'tree-services',
+  };
+  const without = buildOutreachEmail({ ...args, sender: SENDER });
+  assert.equal(without.warnings.length, 1);
+  assert.match(without.warnings[0], /postal address/);
+  const withAddr = buildOutreachEmail({ ...args, sender: { ...SENDER, postalAddress: '123 Main St, Santa Clara, CA 95050', canSpamAddressReady: true } });
+  assert.equal(withAddr.warnings.length, 0);
+  assert.match(withAddr.body, /123 Main St, Santa Clara, CA 95050/, 'the address goes in the signature');
+});
+
+test('the outreach email never invents a review gap that is not there', () => {
+  const e = buildOutreachEmail({
+    lead: { name: 'Big Co', reviews: 900 }, rivals: [{ name: 'Small Co', reviews: 50 }],
+    location: 'Dallas, TX', niche: 'generic', sender: SENDER,
+  });
+  assert.ok(!/you have 900 reviews while/.test(e.body), 'the prospect leads on reviews, so that line would be false');
+  assert.match(e.body, /showing up ahead of you/);
+  assert.match(e.body, /local service companies in Dallas/);
+});
+
+test('"right near you" is only claimed when the rival is actually near', () => {
+  const far = buildOutreachEmail({
+    lead: { name: 'A', reviews: 10, lat: 32.78, lng: -96.8 },
+    rivals: [{ name: 'B', reviews: 90, lat: 33.2, lng: -97.2 }],
+    location: 'Dallas, TX', niche: 'tree-services', sender: SENDER,
+  });
+  assert.ok(!/right near you/.test(far.body));
+  assert.match(far.body, /B in Dallas has 90/);
 });
 
 test('keyword coverage ignores the place name and flags missing service words', () => {

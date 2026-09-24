@@ -11,7 +11,8 @@
  *    your neighbour is beating you".
  */
 import { haversineMi } from './geometry.js';
-import { nameSimilarity } from './providers/match.js';
+import { nameSimilarity, findBusinessRank } from './providers/match.js';
+import { inTop3 } from './ranks.js';
 
 const UNRANKED = 21;
 const rankValue = (r) => (r == null || r > 20 ? UNRANKED : r);
@@ -75,11 +76,17 @@ export function collectCandidates(points, lead) {
  * Pick the two archetypes.
  * @returns {{dominator, peer, candidates, reasons}}
  */
-/** The lead's own top-3 share, read from the same stored results. */
-function leadTop3Share(points) {
+/**
+ * The lead's own top-3 share, read from the stored local packs.
+ *
+ * At scan time points carry only `results`; `rank`/`ranks` are added later by
+ * finalizeAudit. Reading those fields here returned 0 for every scan, which
+ * let a peer "beat" a prospect it was actually losing to.
+ */
+function leadTop3Share(points, lead) {
   const hits = points.filter((p) => {
-    const r = p.ranks ? p.ranks[0] : p.rank;
-    return r != null && r <= 3;
+    const r = Array.isArray(p.ranks) ? p.ranks[0] : findBusinessRank(p.results || [], lead).rank;
+    return inTop3(r);
   }).length;
   return hits / points.length;
 }
@@ -106,21 +113,21 @@ export function recommendCompetitors(points, lead) {
   // a "direct peer" showing more green than the "market dominator" reads as a
   // mistake to the person being pitched.
   const leadReviews = lead.reviews ?? 0;
-  const leadCoverage = leadTop3Share(points);
+  const leadCoverage = leadTop3Share(points, lead);
   const byDistance = (a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity);
-  const rest = candidates.filter((c) => c !== dominator);
-  // Preference order. A peer that is itself invisible proves nothing to the
-  // prospect, so a nearby rival actually beating them comes first.
-  //
-  // Deliberately no cap against the dominator's coverage: the dominator is the
-  // regional name, and on a two-mile grid a business round the corner really
-  // can hold more of it. Forcing an order here picked worse peers than it
-  // fixed, and each panel's label already says why it was chosen.
+  // The peer must out-rank the prospect. A nearby business doing *worse*
+  // proves nothing to the person being pitched and undercuts the sheet, so
+  // when no second rival beats them there is no peer panel at all.
+  const beating = candidates.filter((c) => c !== dominator && c.top3Share > leadCoverage);
+  // Winning by a single pin is noise, not a story. Prefer a rival clearly
+  // ahead - about four pins on a 25-point grid - before settling for any.
+  const CLEAR_MARGIN = 0.15;
+  const clearly = beating.filter((c) => c.top3Share >= leadCoverage + CLEAR_MARGIN);
   const peer =
-    rest.filter((c) => reviewsOf(c) > leadReviews && c.top3Share >= leadCoverage && c.distanceMi != null).sort(byDistance)[0] ||
-    rest.filter((c) => c.top3Share >= leadCoverage && c.distanceMi != null).sort(byDistance)[0] ||
-    rest.filter((c) => reviewsOf(c) > leadReviews && c.distanceMi != null).sort(byDistance)[0] ||
-    rest.sort((a, b) => b.top3Share - a.top3Share)[0] ||
+    clearly.filter((c) => reviewsOf(c) > leadReviews && c.distanceMi != null).sort(byDistance)[0] ||
+    clearly.filter((c) => c.distanceMi != null).sort(byDistance)[0] ||
+    beating.filter((c) => reviewsOf(c) > leadReviews && c.distanceMi != null).sort(byDistance)[0] ||
+    beating.sort((a, b) => b.top3Share - a.top3Share)[0] ||
     null;
 
   const pct = (x) => `${Math.round(x * 100)}%`;
@@ -137,11 +144,11 @@ export function recommendCompetitors(points, lead) {
       : '',
   };
 
-  // Flagged so the composer can say plainly that this market has one clear
-  // winner and no strong second, rather than quietly showing a weak panel.
-  const weakPeer = Boolean(peer && peer.top3Share < leadCoverage);
-  if (weakPeer) {
-    reasons.peerWarning = 'No nearby rival is clearly beating this business except the dominator, so this panel is a weaker comparison. Consider naming one yourself.';
+  // Said plainly in the composer when the market has one clear winner and
+  // nobody else ahead of the prospect, instead of padding with a weak panel.
+  const weakPeer = !peer;
+  if (!peer) {
+    reasons.peerWarning = 'No second rival out-ranks this business, so the report shows the market dominator only. You can name a competitor yourself.';
   }
 
   return { dominator, peer, candidates, reasons, weakPeer };

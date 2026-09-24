@@ -8,6 +8,7 @@ import { renderBasemap, renderWithProvider, TILE_PROVIDERS, resetBlockedProvider
 import { getProvider } from './providers/index.js';
 import { resolveWithPlaces } from './providers/places.js';
 import { liveReady } from './settings.js';
+import { resolvedSender } from './offer.js';
 
 const TEST = { lat: 37.3382, lng: -121.8863, keyword: 'plumber', business: 'Starbucks', location: 'San Jose, CA' };
 
@@ -66,6 +67,22 @@ export async function runHealthCheck() {
       return `1 test search OK · top result: "${results[0].title}"`;
     }));
   }
+
+  // Launch readiness: things that are not broken, but make an audit or email
+  // unfit to send to a real prospect.
+  const sender = resolvedSender();
+  checks.push(sender.canSpamAddressReady
+    ? { name: 'Email compliance (CAN-SPAM)', ok: true, detail: `Postal address set: ${sender.postalAddress}` }
+    : { name: 'Email compliance (CAN-SPAM)', ok: false, detail: 'No full postal address. Commercial email must include a street address, P.O. box, or registered private mailbox. Add it in section 6.' });
+  if (sender.phoneIsFictional) {
+    checks.push({ name: 'Contact phone', ok: false, detail: `${sender.phone} is in the 555-0100–0199 range reserved for fiction, so calls never connect. Add your real number in section 6.` });
+  }
+  checks.push(/localhost|127\.0\.0\.1/.test(config.publicBaseUrl)
+    ? { name: 'Checkout link', ok: false, detail: `Printed audits link to ${config.publicBaseUrl}, which a prospect cannot open. Set your public site in section 5.` }
+    : { name: 'Checkout link', ok: true, detail: `Printed audits link to ${config.publicBaseUrl}/audit/…` });
+  checks.push(config.stripeCheckoutUrl
+    ? { name: 'Payments', ok: true, detail: 'Stripe Payment Link set; each payment is tagged with its audit id.' }
+    : { name: 'Payments', ok: null, detail: 'No Stripe Payment Link yet, so the checkout button emails you instead. Add it in section 5.' });
 
   const failed = checks.filter((c) => c.ok === false).length;
   return { ok: failed === 0, liveReady: liveReady(), checks };

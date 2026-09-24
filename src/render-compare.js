@@ -311,7 +311,7 @@ export async function renderComparison(report, takeaway, opts = {}) {
   // ---- Footer -------------------------------------------------------------
   ctx.fillStyle = COLORS.muted;
   ctx.font = `400 11px ${FONT}`;
-  const legend = 'Green = ranks 1–3 (Map Pack)   ·   Amber = ranks 4–9   ·   Red = rank 10+ or not shown';
+  const legend = 'Green = ranks 1–3 (visible)   ·   Amber = ranks 4–10 (weak)   ·   Red = rank 11+ or not shown (invisible)';
   ctx.fillText(legend, M, H - 14);
   ctx.textAlign = 'right';
   ctx.fillText(`${basemap.attribution}${opts.agencyUrl ? `   ·   ${opts.agencyUrl}` : ''}`, W - M, H - 14);

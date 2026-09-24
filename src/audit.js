@@ -12,6 +12,7 @@ import { findBusinessRank, nameSimilarity } from './providers/match.js';
 import { mapLimit } from './providers/http.js';
 import { parseCoordinates } from './providers/geocode.js';
 import { config } from './config.js';
+import { inTop3, isVisible } from './ranks.js';
 
 export const SPACING_OPTIONS = [0.5, 1, 2];
 export const MAX_COMPETITORS = 2;
@@ -25,8 +26,8 @@ const rankValue = (r) => (r == null || r > 20 ? UNRANKED : r);
 export function metricsFromRanks(ranks, points) {
   const vals = ranks.map(rankValue);
   const n = vals.length;
-  const top3Count = ranks.filter((r) => r != null && r <= 3).length;
-  const visibleCount = ranks.filter((r) => r != null && r <= 9).length;
+  const top3Count = ranks.filter(inTop3).length;
+  const visibleCount = ranks.filter(isVisible).length;
   const firstCount = ranks.filter((r) => r === 1).length;
   return {
     averageRank: +(vals.reduce((a, b) => a + b, 0) / n).toFixed(2),
@@ -147,6 +148,7 @@ export async function scanGrid(input) {
   let lead;
   if (coords) {
     lead = { name: business, ...coords, placeId: null, cid: null, city: location, address, source: 'manual' };
+    if (isMock) lead.verifiedFields = ['address', 'phone', 'hours'];
   } else {
     lead = await resolveBusiness(provider, { name: business, location, address });
   }

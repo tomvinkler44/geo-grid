@@ -8,6 +8,10 @@ import { recommendCompetitors, ARCHETYPES } from './candidates.js';
 import { saveScan, loadScan, pruneScans } from './scanstore.js';
 import { loadSettings, readSettings, saveSettings, liveReady } from './settings.js';
 import { runHealthCheck, testMapProviders } from './healthcheck.js';
+import { resolvedOffer, resolvedSender } from './offer.js';
+import { publicNiches, detectNiche, getNiche, DEFAULT_NICHE } from './niches.js';
+import { buildOutreachEmail } from './executive.js';
+import { loadAuditSummary, SLUG_RE } from './auditstore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 await loadSettings();
@@ -16,10 +20,26 @@ await pruneScans();
 const app = express();
 app.disable('x-powered-by');
 
+/**
+ * Pages a prospect opens from the audit. They must never hit the admin
+ * password prompt, so they are exempt from the gate below. Everything they can
+ * read is the short public summary; the full reports stay behind the gate.
+ */
+const PUBLIC_PATHS = [
+  /^\/checkout(\.html|\.js)?$/,
+  /^\/audit\/[a-z0-9-]+(\/activate)?\/?$/,
+  /^\/api\/audit-summary\/[a-z0-9-]+$/,
+  /^\/api\/checkout-config$/,
+  /^\/tailwind\.css$/,
+  /^\/fonts\/[\w.-]+$/,
+];
+const isPublic = (p) => PUBLIC_PATHS.some((re) => re.test(p));
+
 // Optional password gate for hosted deployments (APP_PASSWORD in the env).
 const appPassword = (process.env.APP_PASSWORD || '').trim();
 if (appPassword) {
   app.use((req, res, next) => {
+    if (isPublic(req.path)) return next();
     const header = req.headers.authorization || '';
     const [scheme, encoded] = header.split(' ');
     const given = scheme === 'Basic' && encoded ? Buffer.from(encoded, 'base64').toString().split(':').slice(1).join(':') : '';
@@ -44,7 +64,12 @@ app.get('/api/config', (_req, res) => {
     agencyName: config.agencyName,
     agencyUrl: config.agencyUrl,
     spacingOptions: SPACING_OPTIONS,
-    offer: config.offer,
+    offer: resolvedOffer(),
+    sender: resolvedSender(),
+    niches: publicNiches(),
+    defaultNiche: DEFAULT_NICHE,
+    publicBaseUrl: config.publicBaseUrl,
+    stripeReady: Boolean(config.stripeCheckoutUrl),
     maxCompetitors: MAX_COMPETITORS,
   });
 });
@@ -79,7 +104,7 @@ app.get('/api/map-test', async (_req, res) => {
  * The scan is stored so approving them in step 3 does not pay for a second one.
  */
 app.post('/api/candidates', async (req, res) => {
-  const { business, location, address, keyword, spacingMi, mock, coordinates } = req.body || {};
+  const { business, location, address, keyword, spacingMi, mock, coordinates, niche, ownerName } = req.body || {};
   const started = Date.now();
   try {
     const useMock = mock !== false || !liveReady();
@@ -123,6 +148,18 @@ app.post('/api/candidates', async (req, res) => {
       keyword: scan.keyword,
       spacingMi: scan.spacingMi,
       recommendations: [toCard(dominator, 'dominator'), toCard(peer, 'peer')].filter(Boolean),
+      niche: getNiche(niche).key,
+      suggestedNiche: detectNiche(scan.keyword),
+      // The first-touch email only needs the scan, so it is ready before any
+      // report is generated: ask permission first, send the audit second.
+      outreachEmail: buildOutreachEmail({
+        lead: scan.lead,
+        rivals: [dominator, peer].filter(Boolean),
+        location: scan.location,
+        ownerName,
+        niche: getNiche(niche).key,
+        sender: resolvedSender(),
+      }),
       candidateCount: candidates.length,
       weakPeer: !!weakPeer,
       alternatives: candidates
@@ -139,7 +176,7 @@ app.post('/api/candidates', async (req, res) => {
 
 /** Step 3 - approve the rivals and build the executive deliverable. */
 app.post('/api/generate', async (req, res) => {
-  const { scanId, competitors, scale } = req.body || {};
+  const { scanId, competitors, scale, niche, ownerName } = req.body || {};
   const started = Date.now();
   try {
     const scan = await loadScan(scanId);
@@ -159,6 +196,8 @@ app.post('/api/generate', async (req, res) => {
       }));
 
     const result = await generateExecutive(scan, chosen, {
+      niche,
+      ownerName,
       scale: scale === 1 ? 1 : 2,
       competitorSource: chosen.every((c) => c.autoSelected) ? 'auto' : chosen.some((c) => c.autoSelected) ? 'mixed' : 'manual',
       onProgress: (m) => console.log(`[generate] ${m}`),
@@ -166,6 +205,7 @@ app.post('/api/generate', async (req, res) => {
 
     res.json({
       id: result.id,
+      slug: result.slug,
       elapsedMs: Date.now() - started,
       panelUrls: result.files.panels.map((f) => `/reports/${path.basename(f)}`),
       jsonUrl: `/reports/${path.basename(result.files.json)}`,
@@ -179,6 +219,38 @@ app.post('/api/generate', async (req, res) => {
     console.error('[generate] failed:', err);
     res.status(400).json({ error: err.message });
   }
+});
+
+/* ---------------------------- public checkout ---------------------------- */
+
+const checkoutPage = path.join(__dirname, '..', 'public', 'checkout.html');
+app.get('/checkout', (_req, res) => res.sendFile(checkoutPage));
+app.get('/audit/:slug/activate', (req, res) => {
+  if (!SLUG_RE.test(req.params.slug)) return res.status(404).send('Not found');
+  res.sendFile(checkoutPage);
+});
+// The short link printed on the audit.
+app.get('/audit/:slug', (req, res) => {
+  if (!SLUG_RE.test(req.params.slug)) return res.status(404).send('Not found');
+  res.redirect(302, `/audit/${req.params.slug}/activate`);
+});
+
+app.get('/api/audit-summary/:slug', async (req, res) => {
+  const summary = await loadAuditSummary(req.params.slug);
+  if (!summary) return res.status(404).json({ error: 'not found' });
+  res.set('Cache-Control', 'no-store').json(summary);
+});
+
+app.get('/api/checkout-config', (_req, res) => {
+  const sender = resolvedSender();
+  res.json({
+    offer: resolvedOffer(),
+    // The prospect sees the brand, not the admin's CAN-SPAM readiness flags.
+    sender: { company: sender.company, name: sender.name, cityState: sender.cityState, postalAddress: sender.postalAddress, email: sender.email, phone: sender.phone },
+    niches: publicNiches(),
+    defaultNiche: DEFAULT_NICHE,
+    stripeCheckoutUrl: config.stripeCheckoutUrl || '',
+  });
 });
 
 app.post('/api/audit', async (req, res) => {

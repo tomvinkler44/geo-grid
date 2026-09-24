@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { nameSimilarity, findBusinessRank, pickBestCandidate } from '../src/providers/match.js';
 import { computeMetrics } from '../src/audit.js';
 import { rankColor, rankLabel } from '../src/render.js';
+import { rankTextColor } from '../src/draw.js';
 
 test('name similarity tolerates punctuation and suffixes', () => {
   assert.equal(nameSimilarity('Pacific Coast Heating & AC', 'Pacific Coast Heating and AC, Inc.'), 1);
@@ -37,9 +38,16 @@ test('metrics: average, top-3 share and competitor tally', () => {
   assert.equal(m.topCompetitor.wins, 2);
 });
 
-test('rank colours follow the spec', () => {
+test('rank colours follow the bands: 1-3 green, 4-10 amber, 11+ red', () => {
   assert.equal(rankColor(1), '#22c55e'); assert.equal(rankColor(3), '#22c55e');
-  assert.equal(rankColor(4), '#f59e0b'); assert.equal(rankColor(9), '#f59e0b');
-  assert.equal(rankColor(10), '#ef4444'); assert.equal(rankColor(null), '#ef4444');
+  assert.equal(rankColor(4), '#f59e0b'); assert.equal(rankColor(10), '#f59e0b');
+  assert.equal(rankColor(11), '#ef4444'); assert.equal(rankColor(null), '#ef4444');
   assert.equal(rankLabel(null), '20+'); assert.equal(rankLabel(21), '20+'); assert.equal(rankLabel(7), '7');
+});
+
+test('amber pins get dark numerals; green and red keep white', () => {
+  assert.equal(rankTextColor(5), '#0f172a');
+  assert.equal(rankTextColor(10), '#0f172a');
+  assert.equal(rankTextColor(2), '#ffffff');
+  assert.equal(rankTextColor(15), '#ffffff');
 });

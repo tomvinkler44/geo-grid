@@ -64,5 +64,10 @@ export async function resolveWithPlaces({ name, location, address = '' }) {
   const candidates = (json.places ?? []).map(toCandidate);
   const best = pickBestCandidate(candidates, name, address);
   if (!best) throw new Error(`Google Places could not find "${name}" in ${location}`);
-  return { ...best, city: location, source: 'google-places' };
+  const verifiedFields = [
+    best.address && 'address',
+    best.phone && 'phone',
+    best.hours && 'hours',
+  ].filter(Boolean);
+  return { ...best, verifiedFields, city: location, source: 'google-places' };
 }

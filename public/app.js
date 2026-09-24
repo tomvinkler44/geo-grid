@@ -1,29 +1,12 @@
-/* Local Visibility Audit — four-step composer and executive report. */
+/* Local Visibility Audit — four-step composer and one-page executive audit. */
 (function () {
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
-  var state = { cfg: null, scan: null, chosen: [null, null], result: null, step: 1 };
-
+  var state = { cfg: null, scan: null, chosen: [], result: null, step: 1, nicheTouched: false };
   var STEPS = ['Business', 'Rivals', 'Generate', 'Report'];
 
-  function renderStepper() {
-    $('stepper').innerHTML = STEPS.map(function (label, i) {
-      var n = i + 1;
-      var done = state.step > n;
-      var active = state.step === n;
-      var dot = done ? 'bg-emerald-500 text-white' : active ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-500';
-      var text = active ? 'text-slate-900' : done ? 'text-emerald-600' : 'text-slate-400';
-      return '<li class="flex items-center gap-1.5 ' + (i ? 'flex-1' : '') + '">' +
-        (i ? '<span class="flex-1 h-px ' + (done || active ? 'bg-slate-300' : 'bg-slate-200') + '"></span>' : '') +
-        '<span class="w-5 h-5 rounded-full grid place-items-center ' + dot + '">' + (done ? '✓' : n) + '</span>' +
-        '<span class="' + text + '">' + label + '</span>' +
-      '</li>';
-    }).join('');
-  }
-
-  function setStep(n) { state.step = n; renderStepper(); }
-
+  /* ------------------------------ helpers ------------------------------ */
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -31,12 +14,38 @@
   }
   var nf = function (n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); };
 
+  function renderStepper() {
+    $('stepper').innerHTML = STEPS.map(function (label, i) {
+      var n = i + 1, done = state.step > n, active = state.step === n;
+      var dot = done ? 'bg-emerald-500 text-white' : active ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-500';
+      var text = active ? 'text-slate-900' : done ? 'text-emerald-600' : 'text-slate-400';
+      return '<li class="flex items-center gap-1.5 ' + (i ? 'flex-1' : '') + '">' +
+        (i ? '<span class="flex-1 h-px ' + (done || active ? 'bg-slate-300' : 'bg-slate-200') + '"></span>' : '') +
+        '<span class="w-5 h-5 rounded-full grid place-items-center ' + dot + '">' + (done ? '✓' : n) + '</span>' +
+        '<span class="' + text + '">' + label + '</span></li>';
+    }).join('');
+  }
+  function setStep(n) { state.step = n; renderStepper(); }
+
   function toast(msg) {
     var t = $('toast');
     t.textContent = msg;
     t.classList.remove('opacity-0', 'translate-y-2');
     clearTimeout(t._timer);
-    t._timer = setTimeout(function () { t.classList.add('opacity-0', 'translate-y-2'); }, 2200);
+    t._timer = setTimeout(function () { t.classList.add('opacity-0', 'translate-y-2'); }, 2600);
+  }
+
+  function copy(text, okMsg) {
+    var done = function () { toast(okMsg); };
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { toast('Could not copy automatically'); }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
   }
 
   function showError(message) {
@@ -62,6 +71,11 @@
     }
   }
 
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Request failed'); return d; }); });
+  }
+
   /* ------------------------------ config ------------------------------ */
   fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
     state.cfg = cfg;
@@ -75,7 +89,22 @@
     } else {
       $('mockHelp').textContent = 'Uncheck to run 25 real lookups via ' + cfg.rankProvider + '.';
     }
+    $('niche').innerHTML = Object.keys(cfg.niches).map(function (k) {
+      return '<option value="' + esc(k) + '"' + (k === cfg.defaultNiche ? ' selected' : '') + '>' + esc(cfg.niches[k].label) + '</option>';
+    }).join('');
   }).catch(function () {});
+
+  // Suggest the industry from the keyword, until the user picks one themselves.
+  $('niche').addEventListener('change', function () { state.nicheTouched = true; });
+  $('keyword').addEventListener('input', function () {
+    if (state.nicheTouched || !state.cfg) return;
+    var kw = $('keyword').value, pick = null;
+    Object.keys(state.cfg.niches).forEach(function (k) {
+      var p = state.cfg.niches[k].pattern;
+      if (!pick && p && new RegExp(p, 'i').test(kw)) pick = k;
+    });
+    $('niche').value = pick || state.cfg.defaultNiche;
+  });
 
   /* --------------------------- step 1: scan --------------------------- */
   $('head1').addEventListener('click', function () {
@@ -93,6 +122,8 @@
       address: $('address').value || undefined,
       keyword: $('keyword').value,
       spacingMi: Number($('spacing').value),
+      niche: $('niche').value,
+      ownerName: $('ownerName').value || undefined,
       mock: $('mock').checked,
       coordinates: $('coordinates').value || undefined
     };
@@ -102,13 +133,8 @@
     $('card2').classList.add('hidden');
     $('card3').classList.add('hidden');
 
-    fetch('/api/candidates', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        if (!res.ok) throw new Error(res.d.error || 'Scan failed');
-        onScan(res.d);
-      })
+    post('/api/candidates', body)
+      .then(onScan)
       .catch(function (err) { showError(err.message); $('empty').classList.remove('hidden'); })
       .finally(function () {
         busy(false);
@@ -126,6 +152,9 @@
     $('body1').classList.add('hidden');
     $('chev1').textContent = '▸';
     renderRecs();
+    var warn = (data.outreachEmail && data.outreachEmail.warnings) || [];
+    $('canSpamWarn').textContent = warn.join(' ');
+    $('canSpamWarn').classList.toggle('hidden', !warn.length);
     $('card2').classList.remove('hidden');
     $('card3').classList.remove('hidden');
     $('empty').classList.remove('hidden');
@@ -140,14 +169,10 @@
 
   function renderRecs() {
     var recs = state.scan.recommendations;
-    if (!recs.length) {
-      $('recs').innerHTML = '<p class="text-sm text-slate-500">No competitors appeared in the results, so the report will cover this business alone.</p>';
-      return;
-    }
-    $('recs').innerHTML = recs.map(function (r, i) {
+    var html = recs.map(function (r, i) {
       var chosen = state.chosen[i];
       var overridden = chosen && !chosen.autoSelected;
-      return '<div class="rounded-xl border p-3" data-slot="' + i + '">' +
+      return '<div class="rounded-xl border p-3">' +
         '<div class="flex items-start justify-between gap-2">' +
           '<span class="text-[10px] font-bold uppercase tracking-wide border rounded-full px-2 py-0.5 ' + (ARCH_STYLE[r.archetypeKey] || '') + '">' + esc(r.archetype) + '</span>' +
           '<button type="button" class="text-xs text-slate-500 hover:text-slate-900 underline" data-edit="' + i + '">' + (overridden ? 'reset' : 'change') + '</button>' +
@@ -157,19 +182,22 @@
           ? '<p class="text-xs text-slate-500 mt-1">Typed by you. Ranks are read from the same scan.</p>'
           : '<p class="text-xs text-slate-600 mt-1">' +
               (r.reviews != null ? '<span class="font-semibold">' + nf(r.reviews) + '</span> reviews' : 'review count unavailable') +
-              (r.rating != null ? ' · ' + r.rating + '★' : '') +
-            '</p>' +
-            '<p class="text-xs text-slate-500 mt-1">' + esc(r.reason) + '</p>' +
-            (r.warning ? '<p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 mt-2">' + esc(r.warning) + '</p>' : '')) +
+              (r.rating != null ? ' · ' + r.rating + '★' : '') + '</p>' +
+            '<p class="text-xs text-slate-500 mt-1">' + esc(r.reason) + '</p>') +
         '<div class="hidden mt-2" data-editor="' + i + '">' +
           '<input class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" placeholder="Competitor name" data-input="' + i + '" value="' + esc(chosen ? chosen.name : '') + '" />' +
           '<div class="flex gap-2 mt-2">' +
             '<button type="button" class="text-xs font-semibold rounded-lg bg-slate-900 text-white px-3 py-1.5" data-save="' + i + '">Use this name</button>' +
             '<button type="button" class="text-xs rounded-lg border px-3 py-1.5" data-cancel="' + i + '">Cancel</button>' +
-          '</div>' +
-        '</div>' +
+          '</div></div>' +
       '</div>';
     }).join('');
+    if (state.scan.weakPeer) {
+      html += '<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">' +
+        'No second rival out-ranks this business, so the report shows the market dominator only.</p>';
+    }
+    if (!recs.length) html = '<p class="text-sm text-slate-500">No competitors appeared in the results, so the report will cover this business alone.</p>';
+    $('recs').innerHTML = html;
 
     $('recs').querySelectorAll('[data-edit]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -200,85 +228,96 @@
     });
   }
 
+  $('btnOutreach').addEventListener('click', function () {
+    if (!state.scan) return;
+    var e = state.scan.outreachEmail;
+    copy(e.text, e.warnings && e.warnings.length ? 'Copied — add your postal address before sending' : 'Outreach email copied');
+  });
+
   /* ------------------------ step 3: generate ------------------------ */
   $('btnGenerate').addEventListener('click', function () {
     clearError();
     setStep(3);
     $('btnGenerate').disabled = true;
     busy(true, 'Reading review signals and drawing the maps…');
-    fetch('/api/generate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scanId: state.scan.scanId, competitors: state.chosen.filter(Boolean) })
-    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        if (!res.ok) throw new Error(res.d.error || 'Generation failed');
-        state.result = res.d;
-        renderExecutive(res.d);
-        setStep(4);
-      })
-      .catch(function (err) { showError(err.message); $('empty').classList.remove('hidden'); })
+    post('/api/generate', {
+      scanId: state.scan.scanId,
+      competitors: state.chosen.filter(Boolean),
+      niche: $('niche').value,
+      ownerName: $('ownerName').value || undefined
+    }).then(function (d) {
+      state.result = d;
+      renderExecutive(d);
+      setStep(4);
+    }).catch(function (err) { showError(err.message); $('empty').classList.remove('hidden'); })
       .finally(function () { busy(false); $('btnGenerate').disabled = false; });
   });
 
   /* --------------------- step 4: the deliverable --------------------- */
-  var TONE = { good: 'text-emerald-600', warn: 'text-amber-500', bad: 'text-red-500' };
-  var ROLE_ACCENT = ['border-emerald-500', 'border-slate-300', 'border-slate-300'];
-  var ROLE_TAG = ['Your facility', 'Market dominator', 'Nearby direct peer'];
+  var ROLE_TAG = ['Your business', 'Competitor A · Market dominator', 'Competitor B · Nearby peer'];
 
   function renderExecutive(d) {
-    var rep = d.report, ex = d.executive, b = rep.businesses;
+    var rep = d.report, ex = d.executive, b = rep.businesses.slice(0, 3);
 
-    $('xName').textContent = rep.business.name;
-    $('xMeta').textContent = '“' + rep.keyword + '”  ·  ' + (rep.business.address || rep.location) +
-      '  ·  ' + new Date(rep.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    $('xShare').textContent = ex.visibility.label;
-    $('xShare').className = 'print-badge text-5xl font-extrabold leading-none mt-1 ' + (TONE[ex.visibility.tone] || '');
-    $('xShareSub').textContent = ex.visibility.top3Count + ' of ' + ex.visibility.points + ' searches put you in the top 3';
+    $('xDate').textContent = new Date(rep.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    $('xName').textContent = rep.business.name + '  ·  “' + rep.keyword + '”  ·  ' + ex.location;
+    $('xHeadline').textContent = ex.headline.text;
+    var parts = ex.headline.sub.split(' vs. ');
+    $('xSubbar').innerHTML = parts.length === 2
+      ? '<span class="font-bold text-red-600">' + esc(parts[0]) + '</span><span class="text-slate-400">vs.</span><span class="font-bold text-emerald-700">' + esc(parts[1]) + '</span>'
+      : '<span class="font-bold">' + esc(ex.headline.sub) + '</span>';
 
-    $('xPanels').innerHTML = b.slice(0, 3).map(function (p, i) {
+    // Maps: two columns when there is no qualifying peer, three otherwise.
+    $('xPanels').className = 'print-gap grid gap-4 ' + (b.length >= 3 ? 'grid-cols-3' : b.length === 2 ? 'grid-cols-2' : 'grid-cols-1');
+    $('xPanels').innerHTML = b.map(function (p, i) {
       var m = p.metrics;
-      return '<figure class="print-panel rounded-xl border-2 ' + ROLE_ACCENT[i] + ' overflow-hidden bg-white">' +
+      return '<figure class="print-panel rounded-xl border-2 ' + (i === 0 ? 'border-emerald-500' : 'border-slate-200') + ' overflow-hidden bg-white">' +
         '<figcaption class="px-2.5 py-1.5 ' + (i === 0 ? 'bg-emerald-50' : 'bg-slate-50') + ' border-b">' +
           '<span class="print-label block text-[9px] font-bold uppercase tracking-wide ' + (i === 0 ? 'text-emerald-700' : 'text-slate-500') + '">' + ROLE_TAG[i] + '</span>' +
           '<span class="print-panel-name block text-xs font-semibold truncate">' + esc(p.name) + '</span>' +
         '</figcaption>' +
         '<img src="' + d.panelUrls[i] + '" alt="Ranking grid for ' + esc(p.name) + '" class="w-full block" />' +
-        '<div class="print-label px-2.5 py-1.5 text-[11px] flex items-center justify-between border-t">' +
-          '<span><b>' + m.top3Count + '</b>/' + rep.points.length + ' top-3</span>' +
-          '<span class="font-bold ' + (i === 0 ? (TONE[ex.visibility.tone] || '') : 'text-slate-700') + '">' + Math.round(m.top3Share * 100) + '%</span>' +
-        '</div>' +
-      '</figure>';
+        '<div class="print-label px-2.5 py-1 text-[11px] flex items-center justify-between border-t">' +
+          '<span><b>' + m.top3Count + '</b>/' + rep.points.length + ' in top 3</span>' +
+          '<span class="font-bold ' + (i === 0 ? 'text-red-600' : 'text-slate-700') + '">' + Math.round(m.top3Share * 100) + '%</span>' +
+        '</div></figure>';
     }).join('');
 
-    var bm = rep.basemap || {};
-    $('xAttrib').textContent = [bm.attribution, d.agency && d.agency.name ? 'Prepared by ' + d.agency.name : '']
-      .filter(Boolean).join('  ·  ');
+    var dot = function (color, label) {
+      return '<span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:' + color + '"></span>' + label + '</span>';
+    };
+    $('xLegend').innerHTML =
+      dot('#22c55e', '1–3 Visible') + dot('#f59e0b', '4–10 Weak') + dot('#ef4444', '11+ Invisible') +
+      '<span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full border-2 border-slate-900"></span>Circled pin = business address</span>' +
+      '<span class="text-slate-400">|</span><span>' + esc(rep.spacingMi) + ' mi grid spacing</span>';
 
     var sig = ex.signals;
     $('xSignals').innerHTML = [sig.reviews, sig.velocity, sig.reply].map(function (c) {
-      return '<div class="print-pad rounded-xl border bg-slate-50 p-3">' +
+      return '<div class="print-pad rounded-xl border bg-slate-50 px-3 py-2">' +
         '<p class="print-label text-[10px] font-bold uppercase tracking-wide text-slate-500">' + esc(c.label) + '</p>' +
-        '<p class="print-card-value text-xl font-extrabold mt-1 ' + (c.measured ? '' : 'text-slate-400') + '">' + esc(c.prospect) + '</p>' +
-        '<p class="print-label text-[11px] text-slate-500">vs ' + esc(c.benchmark) + '</p>' +
-        '<p class="print-sentence text-[11px] mt-1.5 ' + (c.measured ? 'text-slate-700' : 'text-amber-700') + '">' + esc(c.verdict) + '</p>' +
+        '<p class="print-card-value text-lg font-extrabold ' + (c.measured ? '' : 'text-slate-400') + '">' + esc(c.prospect) +
+          ' <span class="print-label text-[11px] font-medium text-slate-500">vs ' + esc(c.benchmark) + '</span></p>' +
       '</div>';
     }).join('');
 
-    $('xSummary').innerHTML = ex.summary.map(function (s) {
-      return '<li class="print-sentence text-sm leading-snug">' +
-        '<b>' + s.n + '. ' + esc(s.title) + '.</b> ' + esc(s.text) +
-      '</li>';
+    $('xFindings').innerHTML = ex.narrative.findings.map(function (f) {
+      return '<li class="print-sentence text-sm leading-snug"><b>' + f.n + '. ' + esc(f.title) + ':</b> ' + esc(f.text) + '</li>';
     }).join('');
+    $('xFix').innerHTML = '<b>' + esc(ex.narrative.fix.title) + ':</b> ' + esc(ex.narrative.fix.text);
 
     var offer = ex.offer;
-    $('xOffer').innerHTML =
-      '<div class="min-w-0">' +
-        '<p class="print-tight font-bold text-sm">' + esc(offer.name) + '</p>' +
-        '<p class="print-label text-xs text-white/70">' + esc(offer.price) + ' ' + esc(offer.terms) + '</p>' +
-      '</div>' +
-      (offer.ctaUrl
-        ? '<a href="' + esc(offer.ctaUrl) + '" class="rounded-xl bg-emerald-500 text-white text-sm font-bold px-5 py-2.5 whitespace-nowrap">' + esc(offer.cta) + '</a>'
-        : '<span class="rounded-xl bg-emerald-500 text-white text-sm font-bold px-5 py-2.5 whitespace-nowrap">' + esc(offer.cta) + '</span>');
+    $('xOfferName').textContent = offer.name;
+    $('xGuarantee').textContent = offer.guarantee;
+    $('xCta').textContent = offer.cta + ' →';
+    $('xCta').href = ex.links.activate;
+    $('xMicro').textContent = offer.microcopy;
+    $('xShort').textContent = ex.links.short;
+
+    var s = ex.sender;
+    $('xSender').textContent = [s.company, s.name, s.postalAddress || s.cityState, s.email, s.phone].filter(Boolean).join('  ·  ');
+
+    // "Save as PDF" uses the page title as the file name.
+    document.title = rep.business.name + ' — Local Visibility Audit';
 
     renderRaw(d);
     $('btnJson').href = d.jsonUrl;
@@ -293,56 +332,44 @@
     var names = rep.businesses.map(function (b) { return esc(b.name); });
     var rows = rep.points.map(function (p) {
       return '<tr class="border-b last:border-0">' +
-        '<td class="py-1 pr-3">' + (p.row + 1) + ',' + (p.col + 1) + '</td>' +
+        '<td class="py-1 pr-3">' + (p.row + 1) + ',' + (p.col + 1) + (p.isCenter ? ' ◯' : '') + '</td>' +
         '<td class="py-1 pr-3 tabular-nums">' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5) + '</td>' +
         '<td class="py-1 pr-3">' + p.bearing + '</td>' +
         '<td class="py-1 pr-3 tabular-nums">' + p.distanceMi.toFixed(2) + '</td>' +
-        p.ranks.map(function (r) {
-          return '<td class="py-1 pr-3 font-semibold tabular-nums">' + (r == null ? '20+' : r) + '</td>';
-        }).join('') +
+        p.ranks.map(function (r) { return '<td class="py-1 pr-3 font-semibold tabular-nums">' + (r == null ? '20+' : r) + '</td>'; }).join('') +
       '</tr>';
     }).join('');
-
     var kw = d.executive.keywordCoverage;
     var sigNotes = d.signals.map(function (s, i) {
       return '<li><b>' + names[i] + ':</b> ' + esc(s.source ? s.source + ' — ' + s.note : s.note) + '</li>';
     }).join('');
-
-    $('xRawBody').innerHTML =
+    var approx = rep.business.approximate
+      ? '<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">The grid is centered on the city center, not an exact street address (sample data, or no address could be resolved). Paste exact coordinates in step 1 for a precise center.</p>'
+      : '';
+    $('xRawBody').innerHTML = approx +
       '<div class="grid sm:grid-cols-2 gap-4">' +
-        '<div><p class="font-semibold mb-1">Category / keyword match</p>' +
-          '<p class="text-slate-600">' + (kw.checked
-            ? (kw.matched
-              ? 'The listing name or category carries every search term.'
-              : 'Missing from the listing name and category: <b>' + esc(kw.missing.join(', ')) + '</b>')
-            : 'Not checked.') + '</p></div>' +
+        '<div><p class="font-semibold mb-1">Category / keyword match</p><p class="text-slate-600">' + (kw.checked
+          ? (kw.matched ? 'The listing name or category carries every search term.' : 'Missing from the listing name and category: <b>' + esc(kw.missing.join(', ')) + '</b>')
+          : 'Not checked.') + '</p></div>' +
         '<div><p class="font-semibold mb-1">Review signal sources</p><ul class="text-slate-600 list-disc pl-4 space-y-0.5">' + sigNotes + '</ul></div>' +
       '</div>' +
       '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr class="text-left border-b">' +
         '<th class="py-1 pr-3">Cell</th><th class="py-1 pr-3">Lat, Lng</th><th class="py-1 pr-3">Bearing</th><th class="py-1 pr-3">Miles</th>' +
         names.map(function (n) { return '<th class="py-1 pr-3">' + n + '</th>'; }).join('') +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<p class="text-xs text-slate-500">Full machine-readable output, including every local pack we saw: ' +
-        '<a class="underline" href="' + d.jsonUrl + '" download>download the JSON</a>.</p>';
+      '<p class="text-xs text-slate-500">Checkout link for this audit: <a class="underline break-all" href="' + esc(d.executive.links.activate) + '" target="_blank" rel="noopener">' + esc(d.executive.links.activate) + '</a></p>' +
+      '<p class="text-xs text-slate-500">Full machine-readable output: <a class="underline" href="' + d.jsonUrl + '" download>download the JSON</a>.</p>';
   }
 
   /* --------------------------- utility bar --------------------------- */
   $('btnPrint').addEventListener('click', function () { window.print(); });
-
   $('btnCopy').addEventListener('click', function () {
+    if (state.result) copy(state.result.executive.reportEmail, 'Report email copied');
+  });
+  $('btnOutreach2').addEventListener('click', function () {
     if (!state.result) return;
-    var text = state.result.executive.email;
-    var done = function () { toast('Email copied to clipboard'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, fallback);
-    } else fallback();
-    function fallback() {
-      var ta = document.createElement('textarea');
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); done(); } catch (e) { toast('Could not copy automatically'); }
-      document.body.removeChild(ta);
-    }
+    var e = state.result.executive.outreachEmail;
+    copy(e.text, e.warnings && e.warnings.length ? 'Copied — add your postal address before sending' : 'Outreach email copied');
   });
 
   renderStepper();

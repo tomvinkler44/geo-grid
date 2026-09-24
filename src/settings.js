@@ -23,13 +23,20 @@ export const FIELDS = {
   agencyName: { path: ['agencyName'] },
   agencyUrl: { path: ['agencyUrl'] },
   // keepDefault: clearing the box restores the built-in wording rather than
-  // leaving an empty strip on every report. (Clearing a key really should
-  // clear it, so those stay as they are.)
+  // leaving a blank on every report. (Clearing a key really should clear it.)
   offerName: { path: ['offer', 'name'], keepDefault: true },
   offerPrice: { path: ['offer', 'price'], keepDefault: true },
-  offerTerms: { path: ['offer', 'terms'], keepDefault: true },
   offerCta: { path: ['offer', 'cta'], keepDefault: true },
-  offerCtaUrl: { path: ['offer', 'ctaUrl'] },
+  offerGuarantee: { path: ['offer', 'guarantee'], keepDefault: true },
+  offerMicrocopy: { path: ['offer', 'microcopy'], keepDefault: true },
+  senderCompany: { path: ['sender', 'company'], keepDefault: true },
+  senderName: { path: ['sender', 'name'], keepDefault: true },
+  senderCityState: { path: ['sender', 'cityState'], keepDefault: true },
+  senderPostalAddress: { path: ['sender', 'postalAddress'] },
+  senderEmail: { path: ['sender', 'email'], keepDefault: true },
+  senderPhone: { path: ['sender', 'phone'], keepDefault: true },
+  publicBaseUrl: { path: ['publicBaseUrl'], keepDefault: true },
+  stripeCheckoutUrl: { path: ['stripeCheckoutUrl'] },
   userAgent: { path: ['userAgent'] },
 };
 

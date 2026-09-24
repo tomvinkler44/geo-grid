@@ -5,6 +5,10 @@ import { runAudit, finalizeAudit } from './audit.js';
 import { renderPanels } from './render-panel.js';
 import { reviewSignals } from './providers/reviews.js';
 import { buildExecutive } from './executive.js';
+import { resolvedOffer, resolvedSender, auditLinks } from './offer.js';
+import { getNiche } from './niches.js';
+import { saveAuditSummary } from './auditstore.js';
+import { createHash } from 'node:crypto';
 import { renderReport } from './render.js';
 import { renderComparison } from './render-compare.js';
 import { generateTakeaway } from './takeaway.js';
@@ -70,16 +74,38 @@ export async function generateReport(input, opts = {}) {
 }
 
 
+/** Short, stable, unguessable-enough id for an audit's public URL. */
+export function auditSlug(name, keyword, when = new Date().toISOString()) {
+  const hash = createHash('sha1').update(`${name}|${keyword}|${when}`).digest('hex').slice(0, 5);
+  return `${slug(name).slice(0, 36)}-${hash}`;
+}
+
+/** What the checkout page needs, and nothing else - it is served publicly. */
+export function checkoutSummary({ report, executive, niche, slugId }) {
+  const lead = report.businesses[0];
+  const leader = executive.headline.leader;
+  return {
+    slug: slugId,
+    business: lead.name,
+    city: executive.location,
+    keyword: report.keyword,
+    niche,
+    currPins: lead.metrics.top3Count,
+    totalPins: report.points.length,
+    leader: leader ? leader.name : null,
+    leaderPins: leader ? leader.metrics.top3Count : null,
+    generatedAt: report.generatedAt,
+  };
+}
+
 /**
  * The executive deliverable: finalize a scan against the chosen rivals, gather
- * review signals, render the three map panels, and build the one-page view
- * model the browser renders and prints.
- *
- * The grid scan already happened in step 2, so this adds only the review
- * lookups - one call per business, and none at all in mock mode.
+ * review signals, render the map panels, and build the one-page view model the
+ * browser renders and prints. The grid scan already happened in step 2.
  */
 export async function generateExecutive(scan, competitors, opts = {}) {
   const log = opts.onProgress || (() => {});
+  const niche = getNiche(opts.niche).key;
   const report = await finalizeAudit(scan, competitors, {
     competitorSource: opts.competitorSource,
     onProgress: log,
@@ -93,7 +119,22 @@ export async function generateExecutive(scan, competitors, opts = {}) {
   const rendered = await renderPanels(report, { scale: opts.scale ?? 2, mapProvider: opts.mapProvider });
   report.basemap = rendered.basemap;
 
-  const executive = buildExecutive({ report, signals, offer: config.offer });
+  const slugId = auditSlug(report.business.name, report.keyword, report.generatedAt);
+  const offer = resolvedOffer();
+  const sender = resolvedSender();
+
+  // Built once without links to learn the leader, then the links go in.
+  const draft = buildExecutive({ report, signals, offer, sender, niche, links: { activate: '', short: '' }, ownerName: opts.ownerName });
+  const summary = checkoutSummary({ report, executive: draft, niche, slugId });
+  const links = auditLinks(slugId, {
+    business: summary.business,
+    currPins: summary.currPins,
+    leader: summary.leader,
+    leaderPins: summary.leaderPins,
+    niche,
+    city: summary.city,
+  });
+  const executive = buildExecutive({ report, signals, offer, sender, niche, links, ownerName: opts.ownerName });
 
   const outDir = path.resolve(opts.outputDir ?? config.outputDir);
   await fs.mkdir(outDir, { recursive: true });
@@ -106,8 +147,9 @@ export async function generateExecutive(scan, competitors, opts = {}) {
     await fs.writeFile(file, panel.png);
     files.panels.push(file);
   }
-  await fs.writeFile(files.txt, executive.email);
-  await fs.writeFile(files.json, JSON.stringify({ id, report, executive, signals }, null, 2));
+  await fs.writeFile(files.txt, `${executive.outreachEmail.text}\n\n----------\n\n${executive.reportEmail}`);
+  await fs.writeFile(files.json, JSON.stringify({ id, slug: slugId, report, executive, signals }, null, 2));
+  await saveAuditSummary(summary);
 
-  return { id, report, executive, signals, files, panelSize: { width: rendered.width, height: rendered.height } };
+  return { id, slug: slugId, report, executive, signals, files, summary, panelSize: { width: rendered.width, height: rendered.height } };
 }

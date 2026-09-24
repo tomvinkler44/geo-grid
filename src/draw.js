@@ -2,6 +2,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GlobalFonts } from '@napi-rs/canvas';
+import { band } from './ranks.js';
 
 const FONT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'fonts');
 for (const f of ['Inter-Regular', 'Inter-Medium', 'Inter-SemiBold', 'Inter-Bold']) {
@@ -25,9 +26,18 @@ export const COLORS = {
 };
 
 export function rankColor(rank) {
-  if (rank == null || rank >= 10) return COLORS.red;
-  if (rank <= 3) return COLORS.green;
+  const b = band(rank);
+  if (b === 'visible') return COLORS.green;
+  if (b === 'invisible') return COLORS.red;
   return COLORS.amber;
+}
+
+/**
+ * Numeral colour on a pin. White on amber measures about 2:1 contrast and
+ * smudges when printed, so amber pins get dark slate numerals instead.
+ */
+export function rankTextColor(rank) {
+  return band(rank) === 'weak' ? '#0f172a' : COLORS.white;
 }
 export function rankLabel(rank) {
   return rank == null || rank > 20 ? '20+' : String(rank);
@@ -177,14 +187,22 @@ export function drawBadges(ctx, points, ranks, toPage, radius, { markCenter = tr
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.stroke();
     if (markCenter && points[i].isCenter) {
-      ctx.lineWidth = Math.max(2, radius * 0.1);
+      // The grid is centred on the listing's coordinates, so this pin *is*
+      // the business address. A white halo then a dark ring keeps it legible
+      // on any basemap.
+      ctx.lineWidth = Math.max(3, radius * 0.16);
+      ctx.strokeStyle = COLORS.white;
+      ctx.beginPath();
+      ctx.arc(x, y, radius + radius * 0.2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = Math.max(2.5, radius * 0.13);
       ctx.strokeStyle = COLORS.ink;
       ctx.beginPath();
-      ctx.arc(x, y, radius + radius * 0.23, 0, Math.PI * 2);
+      ctx.arc(x, y, radius + radius * 0.36, 0, Math.PI * 2);
       ctx.stroke();
     }
     const label = rankLabel(rank);
-    ctx.fillStyle = COLORS.white;
+    ctx.fillStyle = rankTextColor(rank);
     ctx.font = `bold ${label.length > 2 ? threeDigitFont : twoDigitFont}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

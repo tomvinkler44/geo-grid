@@ -2,6 +2,8 @@
  * Turns an audit into plain-English, email-ready copy.
  */
 
+import { isInvisible, isVisible } from './ranks.js';
+
 const fmtMi = (mi) => (Number.isInteger(mi) ? `${mi}` : mi.toFixed(1).replace(/\.0$/, ''));
 const pct = (x) => `${Math.round(x * 100)}%`;
 const plural = (n, s, p = `${s}s`) => `${n} ${n === 1 ? s : p}`;
@@ -15,7 +17,7 @@ function leakDirections(points) {
   const groups = new Map();
   for (const p of points) {
     if (p.isCenter) continue;
-    const bad = p.rank == null || p.rank >= 10;
+    const bad = isInvisible(p.rank);
     if (!bad) continue;
     const g = groups.get(p.bearing) || { bearing: p.bearing, count: 0, nearestMi: Infinity, nearestRank: null };
     g.count++;
@@ -25,7 +27,7 @@ function leakDirections(points) {
   return [...groups.values()].sort((a, b) => b.count - a.count || a.nearestMi - b.nearestMi);
 }
 
-/** Largest distance from centre at which every point is still top-3. */
+/** Largest distance from center at which every point is still top-3. */
 function safeRadius(points) {
   const sorted = [...points].sort((a, b) => a.distanceMi - b.distanceMi);
   let radius = 0;
@@ -42,7 +44,7 @@ export function generateTakeaway(report) {
   const n = points.length;
   const center = points.find((p) => p.isCenter);
   const green = points.filter((p) => p.rank != null && p.rank <= 3);
-  const red = points.filter((p) => p.rank == null || p.rank >= 10);
+  const red = points.filter((p) => isInvisible(p.rank));
   const radius = safeRadius(points);
   const leaks = leakDirections(points);
 
@@ -51,7 +53,7 @@ export function generateTakeaway(report) {
   if (green.length === n) {
     good = `${name} is in the Google Map Pack (top 3) at every one of the ${n} points we tested for "${keyword}". That is rare – you own this search across the whole ${fmtMi(spacingMi * 4)}-mile area.`;
   } else if (green.length === 0) {
-    good = center.rank != null && center.rank <= 9
+    good = isVisible(center.rank)
       ? `${name} does appear for "${keyword}" right at your location (rank #${center.rank}), so Google knows the listing is relevant – it just isn't rewarding it yet.`
       : `Google does recognise ${name} as a business, but it is not currently associating the listing with "${keyword}" strongly enough to show it in the Map Pack – even at your own address.`;
   } else {
@@ -78,7 +80,7 @@ export function generateTakeaway(report) {
     const lead = red.length >= n * 0.6
       ? `At ${red.length} of the ${n} points – ${pct(red.length / n)} of the area – ${name} is effectively invisible for "${keyword}".`
       : `Your visibility falls off fast with distance. At ${plural(red.length, 'point')} out of ${n} (${pct(red.length / n)} of the area) you are effectively invisible for "${keyword}".`;
-    leak = `${lead} A homeowner searching just ${dirText[0]} will not see you at all, and it is the same story ${dirText.slice(1).length ? dirText.slice(1).join(' and ') : 'in the outer ring'}. Every one of those searches is a call going to someone else, and those neighbourhoods are well inside your normal service area.`;
+    leak = `${lead} A homeowner searching just ${dirText[0]} will not see you at all, and it is the same story ${dirText.slice(1).length ? dirText.slice(1).join(' and ') : 'in the outer ring'}. Every one of those searches is a call going to someone else, and those neighborhoods are well inside your normal service area.`;
   }
 
   // ---- The Competitive Context ------------------------------------------
@@ -154,7 +156,7 @@ function compareBlock(report, { radius, red, green, leaks }) {
     leak = `You are visible everywhere on the grid, but only ${pct(m.top3Share)} of it puts you in the top 3 where the calls actually happen.`;
   } else {
     const g = leaks[0];
-    const where = g ? `${fmtMi(g.nearestMi)} ${g.nearestMi === 1 ? 'mile' : 'miles'} ${bearingPhrase(g.bearing)}` : 'just outside the centre';
+    const where = g ? `${fmtMi(g.nearestMi)} ${g.nearestMi === 1 ? 'mile' : 'miles'} ${bearingPhrase(g.bearing)}` : 'just outside the center';
     leak = `At ${plural(red.length, 'point')} (${pct(red.length / n)} of the area) you do not appear at all. It starts ${where} of you.`;
   }
 
