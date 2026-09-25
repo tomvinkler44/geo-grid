@@ -30,11 +30,15 @@
   ]).then(function (res) {
     var cfg = res[0], saved = res[1] || {};
     // Query parameters win: they are what the printed button carried.
+    // Current links use biz/pins/lead; business/currPins/leader are from
+    // audits printed before the rename and must keep working.
+    var pick = function (a, b) { return q.get(a) || q.get(b); };
+    var pinsRaw = q.has('pins') ? q.get('pins') : q.has('currPins') ? q.get('currPins') : null;
     var d = {
-      business: q.get('business') || saved.business || '',
-      currPins: q.has('currPins') ? intOr(q.get('currPins'), null) : (saved.currPins != null ? saved.currPins : null),
+      business: pick('biz', 'business') || saved.business || '',
+      currPins: pinsRaw != null ? intOr(pinsRaw, null) : (saved.currPins != null ? saved.currPins : null),
       totalPins: intOr(q.get('total'), saved.totalPins || 25),
-      leader: q.get('leader') || saved.leader || '',
+      leader: pick('lead', 'leader') || saved.leader || '',
       niche: q.get('niche') || saved.niche || cfg.defaultNiche,
       city: q.get('city') || saved.city || '',
     };

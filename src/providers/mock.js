@@ -152,7 +152,7 @@ function buildMarket({ business, keyword, spacingMi }) {
     lng: business.lng,
     strength: 1,
     rating: +(4.1 + rand() * 0.5).toFixed(1),
-    reviews: 60 + Math.floor(rand() * 220),
+    reviews: 90 + Math.floor(rand() * 150),
     category: cat.category,
     website: `https://www.${business.name.toLowerCase().replace(/[^a-z0-9]+/g, '')}.com`,
   }];
@@ -174,7 +174,7 @@ function buildMarket({ business, keyword, spacingMi }) {
       lng: p.lng,
       strength: 1.5,
       rating: +(4.4 + rand() * 0.5).toFixed(1),
-      reviews: 240 + Math.floor(rand() * 700),
+      reviews: k === 0 ? 620 + Math.floor(rand() * 320) : 260 + Math.floor(rand() * 200),
       category: cat.category,
       website: `https://www.${names[k].toLowerCase().replace(/[^a-z0-9]+/g, '')}.com`,
     });
@@ -222,7 +222,7 @@ export const mockProvider = {
       address: exact ? geo.displayName : '',
       city: city.city || location,
       rating: +(4.0 + rand() * 0.6).toFixed(1),
-      reviews: 60 + Math.floor(rand() * 260),
+      reviews: 90 + Math.floor(rand() * 150),
       website: `https://www.${name.toLowerCase().replace(/[^a-z0-9]+/g, '')}.com`,
       approximate: !exact,
       verifiedFields: ['address', 'phone', 'hours'],

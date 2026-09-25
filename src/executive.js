@@ -60,69 +60,55 @@ function card({ label, prospect, benchmark, verdict, measured, note }) {
   return { label, prospect, benchmark, verdict, measured, note: note || '' };
 }
 
+/**
+ * The three metric cards. Each compares the prospect with Competitor A, the
+ * market dominator named in the headline, so the page benchmarks against one
+ * business throughout. The subtext is the consequence when the prospect is
+ * behind; when they are level or ahead it says so instead of implying a gap.
+ */
 export function buildSignals({ businesses, signals }) {
-  const [lead, ...rivals] = businesses;
-  const leadSig = signals[0];
-  const rivalSigs = signals.slice(1);
-  const best = (pick) => {
-    const vals = rivals.map((r, i) => pick(r, rivalSigs[i])).filter((v) => v != null);
-    return vals.length ? Math.max(...vals) : null;
-  };
+  const lead = businesses[0];
+  const a = businesses[1] || null;
+  const ls = signals[0] || {};
+  const as = signals[1] || {};
+  const measuredRate = (s, f) => s && s.measured && s[f] != null;
 
-  // --- Total reviews (always available from the SERP) ---------------------
-  const leadReviews = lead.reviews ?? null;
-  const rivalBest = best((r) => r.reviews);
+  // --- Total Google reviews: always present in the local pack --------------
+  const lr = lead.reviews ?? null;
+  const ar = a ? a.reviews ?? null : null;
   const reviews = card({
-    label: 'Total Google reviews',
-    prospect: leadReviews == null ? '—' : num(leadReviews),
-    benchmark: rivalBest == null ? '—' : `${num(rivalBest)} best rival`,
-    measured: leadReviews != null && rivalBest != null,
-    verdict:
-      leadReviews == null || rivalBest == null
-        ? 'Review counts were not available for every business.'
-        : leadReviews >= rivalBest
-          ? 'You hold the review lead in this market.'
-          : `Roughly ${(rivalBest / Math.max(1, leadReviews)).toFixed(1)}× fewer than the leader — you read as the riskier choice.`,
+    label: 'Total Google Reviews',
+    prospect: lr == null ? '—' : num(lr),
+    benchmark: ar == null ? '—' : `${num(ar)} leader`,
+    measured: lr != null && ar != null,
+    verdict: lr == null || ar == null ? 'Review counts were not available for both businesses.'
+      : lr < ar ? 'Causes searcher hesitation' : 'You lead on review volume',
   });
 
-  // --- Recent review velocity -------------------------------------------
-  const rivalVelocity = best((_r, s) => s?.velocityPerMonth);
+  // --- 30-day velocity: needs a reviews endpoint ----------------------------
+  const lv = measuredRate(ls, 'velocityPerMonth') ? ls.velocityPerMonth : null;
+  const av = measuredRate(as, 'velocityPerMonth') ? as.velocityPerMonth : null;
   const velocity = card({
-    label: `Reviews in the last ${leadSig.windowDays} days`,
-    prospect: leadSig.measured && leadSig.velocityPerMonth != null
-      ? `${leadSig.atLeast ? '≥' : ''}${leadSig.velocityPerMonth}/mo`
-      : 'not measured',
-    benchmark: rivalVelocity == null ? '—' : `${rivalVelocity}/mo best rival`,
-    measured: leadSig.measured && leadSig.velocityPerMonth != null,
-    note: leadSig.note,
-    verdict:
-      !leadSig.measured || leadSig.velocityPerMonth == null
-        ? 'A reviews endpoint is needed to measure recency. Add SerpApi or DataForSEO credentials.'
-        : leadSig.velocityPerMonth === 0
-          ? 'No new reviews this month — the profile reads as dormant.'
-          : rivalVelocity != null && leadSig.velocityPerMonth < rivalVelocity
-            ? 'Fewer fresh reviews than the rivals, so the profile looks less current.'
-            : 'Healthy recent review flow.',
+    label: '30-Day Review Velocity',
+    prospect: lv == null ? 'not measured' : `${ls.atLeast ? '≥' : ''}${lv}/mo`,
+    benchmark: av == null ? '—' : `${as.atLeast ? '≥' : ''}${av}/mo leader`,
+    measured: lv != null,
+    note: ls.note,
+    verdict: lv == null ? 'Needs a reviews data source (Settings, section 1)'
+      : av == null || lv < av ? 'Signals listing freshness to Google' : 'Keeping pace with the leader',
   });
 
-  // --- Owner reply rate ---------------------------------------------------
-  const rivalReply = best((_r, s) => s?.ownerReplyRate);
+  // --- Owner reply rate: needs a reviews endpoint, never from Places -------
+  const lp = measuredRate(ls, 'ownerReplyRate') ? ls.ownerReplyRate : null;
+  const ap = measuredRate(as, 'ownerReplyRate') ? as.ownerReplyRate : null;
   const reply = card({
-    label: 'Owner reply rate',
-    prospect: leadSig.measured && leadSig.ownerReplyRate != null
-      ? `${pct(leadSig.ownerReplyRate)} (${leadSig.ownerReplies} of ${leadSig.replySampleSize})`
-      : 'not measured',
-    benchmark: rivalReply == null ? '—' : `${pct(rivalReply)} best rival`,
-    measured: leadSig.measured && leadSig.ownerReplyRate != null,
-    note: leadSig.note,
-    verdict:
-      !leadSig.measured || leadSig.ownerReplyRate == null
-        ? 'Owner replies need a reviews endpoint. Google Places does not expose them.'
-        : leadSig.ownerReplyRate === 0
-          ? 'Not one review answered — Google reads that as an inactive profile.'
-          : leadSig.ownerReplyRate < 0.5
-            ? 'Most reviews go unanswered.'
-            : 'Replies are being handled well.',
+    label: 'Owner Reply Rate',
+    prospect: lp == null ? 'not measured' : pct(lp),
+    benchmark: ap == null ? '—' : `${pct(ap)} leader`,
+    measured: lp != null,
+    note: ls.note,
+    verdict: lp == null ? 'Needs a reviews data source (Settings, section 1)'
+      : ap == null || lp < ap ? 'Missed keyword & activity signals' : 'Replying as actively as the leader',
   });
 
   return { reviews, velocity, reply };
@@ -173,143 +159,136 @@ function mostReviewed(businesses) {
     ((b.reviews ?? -1) > (best?.reviews ?? -1) ? b : best), null);
 }
 
+/**
+ * "[Business] captures [X]% of local searches in [City]. [Competitor A]
+ * captures [Y]%." X and Y are each business's top-3 share across the 25 grid
+ * points; the context strip under the headline says exactly that.
+ */
 export function buildHeadline(report) {
-  const { businesses, points } = report;
+  const { businesses, points, location, keyword, generatedAt } = report;
   const lead = businesses[0];
-  const n = points.length;
-  const mine = lead.metrics.top3Count;
-  const leader = marketLeader(businesses);
-  const first = `You're in Google's top 3 for ${mine} of ${n} nearby searches.`;
-  if (!leader) {
-    return { text: first, sub: `${pct(mine / n)} your coverage`, leader: null };
-  }
-  if (leader.metrics.top3Count <= mine) {
-    return {
-      text: `${first} No competitor we found is in more.`,
-      sub: `${pct(mine / n)} your coverage vs. ${pct(leader.metrics.top3Share)} nearest rival`,
-      leader,
-    };
-  }
+  const a = businesses[1] || null;
+  const city = cityOf(location, report.business) || 'your area';
+  const first = `${lead.name} captures ${pct(lead.metrics.top3Share)} of local searches in ${city}.`;
+  const date = new Date(generatedAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   return {
-    text: `${first} ${leader.name} is in ${leader.metrics.top3Count}.`,
-    sub: `${pct(mine / n)} your coverage vs. ${pct(leader.metrics.top3Share)} market leader`,
-    leader,
+    text: a ? `${first} ${a.name} captures ${pct(a.metrics.top3Share)}.` : first,
+    leadPct: pct(lead.metrics.top3Share),
+    rivalPct: a ? pct(a.metrics.top3Share) : null,
+    context: `Search Term: “${keyword}” · Area Tested: ${points.length} Neighborhood Coordinates · Date: ${date}`,
+    leader: a,
+    city,
   };
 }
 
+/** The compact legend printed directly under the maps. */
 export function legendText(spacingMi) {
-  return `● ${BAND_LABELS.visible} (Green)  ● ${BAND_LABELS.weak} (Amber)  ● ${BAND_LABELS.invisible} (Red)  |  ${spacingMi} mi grid spacing`;
+  return `● ${BAND_LABELS.visible} (Green)  ● ${BAND_LABELS.weak} (Amber)  ● ${BAND_LABELS.invisible} (Red)  |  Circled pin = Your Address  |  ${spacingMi} mi grid spacing`;
 }
 
-/* ------------------------------------------------------------------------ */
-/* The narrative: four findings and the fix                                 */
-/* ------------------------------------------------------------------------ */
+/**
+ * Service words to name in the action plan: the searched terms (without the
+ * city) plus the first two of the niche's high-ticket jobs.
+ */
+export function serviceTokens(keyword, location, niche) {
+  const place = new Set(normalizeName(location).split(' ').filter(Boolean));
+  const fromKeyword = String(keyword || '').toLowerCase().split(/\s+/)
+    .filter((w) => w && !place.has(normalizeName(w)) && !/^(near|me|in|the|and|for|best|top)$/.test(w));
+  const phrase = fromKeyword.join(' ').trim();
+  const jobs = String(niche.highTicket || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 2);
+  return [...new Set([phrase, ...jobs].filter(Boolean))].slice(0, 3);
+}
 
 /**
- * Each point is a bold one-liner plus one explanatory sentence. Every claim is
- * drawn from something measured; where a planned finding was not measurable
- * the slot is filled with a different finding that was, rather than an
- * assertion nobody checked.
+ * Two columns. The diagnosis says how they rank today; the action plan says
+ * what moves the pins. Every sentence is assembled from measured values, and
+ * each principle has a fallback so no sentence contradicts the map printed
+ * beside it (for instance, never "you rank high at your door" when you don't).
  */
 export function buildNarrative({ report, signals, offer, niche: nicheKey }) {
   const niche = getNiche(nicheKey);
   const { points, keyword, location, businesses } = report;
   const lead = businesses[0];
-  const leadSig = signals[0] || {};
-  const n = points.length;
+  const a = businesses[1] || null;
+  const ls = signals[0] || {};
+  const as = signals[1] || {};
   const centre = points.find((p) => p.isCenter);
-  const doorRank = centre ? centre.ranks[0] : null;
-  const doorText = doorRank == null ? 'outside the top 20' : `#${doorRank}`;
+  const door = centre ? centre.ranks[0] : null;
   const radius = safeRadiusMi(points, 0);
   const blind = firstBlindSpot(points, 0);
-  const leader = marketLeader(businesses);
-  const biggest = mostReviewed(businesses);
+  const verified = (report.business.verifiedFields || []).includes('address');
+  const aName = a ? a.name : 'the market leader';
+  const miles = (m) => `${fmtMi(m)} ${m === 1 ? 'mile' : 'miles'}`;
 
-  // 1 - Profile basics
-  // Only fields a resolver actually confirmed. Without Google Places there is
-  // nothing to confirm, and the sentence falls back to what the scan proves.
-  const verified = ['address', 'phone', 'hours'].filter((f) => (report.business.verifiedFields || []).includes(f));
-  const basicsList = verified.length === 3 ? 'Address, phone, and hours'
-    : verified.length === 2 ? `${cap(verified[0])} and ${verified[1]}`
-      : verified.length === 1 ? cap(verified[0]) : null;
-  const one = {
-    title: 'Profile Basics',
-    text: basicsList
-      ? `${basicsList} ${verified.length === 1 ? 'is' : 'are'} properly verified; you rank ${doorText} directly at your doorstep.`
-      : `Your listing is live and indexed for “${keyword}”; you rank ${doorText} directly at your doorstep.`,
-  };
+  // ---- Diagnosis ----------------------------------------------------------
+  // 1. Validate proximity, without contradicting the map.
+  const knows = verified ? 'Google verifies your address' : 'Google places your listing at your address';
+  let proximity;
+  if (inTop3(door) && radius > 0) {
+    proximity = `${knows} and ranks you #${door} at your door, holding the top 3 within ${miles(radius)}.`;
+  } else if (inTop3(door)) {
+    proximity = `${knows} and ranks you #${door} at your door, but only at that spot.`;
+  } else {
+    proximity = `${knows}, yet even at your door you rank ${door == null ? 'outside the top 20' : `#${door}`}, below the three listings most people call.`;
+  }
 
-  // 2 - The distance drop
-  const rival = leader ? ` to ${leader.name}` : '';
-  let dropText;
-  if (radius > 0 && blind) {
-    dropText = `You hold the top 3 within ${fmtMi(radius)} ${radius === 1 ? 'mile' : 'miles'}, but drop off the map past ${fmtMi(blind.distanceMi)} ${blind.distanceMi === 1 ? 'mile' : 'miles'}, losing calls across town${rival}.`;
+  // 2. Reveal the perimeter drop.
+  let perimeter;
+  if (blind) {
+    perimeter = `Beyond ${miles(blind.distanceMi)}, your listing drops into the red zone outside the top 10, handing calls across town to ${aName}.`;
   } else if (radius > 0) {
-    dropText = `You hold the top 3 within ${fmtMi(radius)} ${radius === 1 ? 'mile' : 'miles'}, then slide below the fold where few searchers scroll, losing calls${rival}.`;
-  } else if (blind) {
-    dropText = `You are outside the top 3 even near your door, and off the map entirely by ${fmtMi(blind.distanceMi)} ${blind.distanceMi === 1 ? 'mile' : 'miles'}, losing calls${rival}.`;
+    perimeter = `Beyond ${miles(radius)}, you slip to positions 4–10, below the fold, handing the first calls across town to ${aName}.`;
   } else {
-    dropText = `You reach the top 3 in only ${lead.metrics.top3Count} of ${n} nearby searches, losing calls${rival}.`;
-  }
-  const two = { title: 'The Distance Drop', text: dropText };
-
-  // 3 - The risk gap
-  let three;
-  if (biggest && lead.reviews != null && biggest.reviews != null && biggest.reviews > lead.reviews) {
-    three = {
-      title: 'The Risk Gap',
-      text: `You have ${num(lead.reviews)} reviews while ${biggest.name} has ${num(biggest.reviews)}. Most people don't look further; the longer list looks like the safer choice.`,
-    };
-  } else if (leader && lead.reviews != null) {
-    three = {
-      title: 'The Visibility Gap',
-      text: `You have ${num(lead.reviews)} reviews, yet ${leader.name} is shown ahead of you in ${leader.metrics.top3Count - lead.metrics.top3Count} more nearby searches. Reviews alone are not closing the gap.`,
-    };
-  } else {
-    three = {
-      title: 'The Risk Gap',
-      text: `Your review count is the first thing a searcher compares, and it decides which of the three names in the Map Pack gets the call.`,
-    };
+    perimeter = `Across the ${points.length} points tested you reach the top 3 in only ${lead.metrics.top3Count}, so proximity alone is not winning customers across town.`;
   }
 
-  // 4 - Unanswered reviews, or the strongest measured substitute
-  const kw = keywordCoverage(keyword, location, lead);
-  const invisible = lead.metrics.invisibleCount;
-  let four;
-  if (leadSig.measured && leadSig.ownerReplyRate != null) {
-    four = {
-      title: 'Unanswered Reviews & Inactivity',
-      text: leadSig.ownerReplyRate === 0
-        ? `None of your last ${leadSig.replySampleSize} reviews has an owner reply. Unreplied reviews signal dormancy to Google and searchers.`
-        : `Only ${pct(leadSig.ownerReplyRate)} of recent reviews have an owner reply. Unreplied reviews signal dormancy to Google and searchers.`,
-    };
-  } else if (leadSig.measured && leadSig.velocityPerMonth === 0) {
-    four = {
-      title: 'Review Inactivity',
-      text: `No new review has landed in ${leadSig.windowDays} days. A quiet profile signals dormancy to Google and searchers.`,
-    };
-  } else if (kw.checked && !kw.matched) {
-    four = {
-      title: 'Missing Service Keywords',
-      text: `Your listing name and category never use “${kw.missing.join(' ')}”, the words people actually search. Google can't rank you for terms your profile doesn't carry.`,
-    };
-  } else {
-    four = {
-      title: 'Invisible Across Town',
-      text: `In ${invisible} of ${n} nearby searches you are not on the first screen at all. Each of those is a customer who never learns you exist.`,
-    };
-  }
+  // 3. Quantify the social-proof gap, against A, or whoever out-reviews them.
+  // Competitor A first, so this line and the review card beside it compare
+  // the same two businesses. Only if A does not out-review the prospect does
+  // it fall to whichever rival does.
+  const outReviews = (b) => b && b.reviews != null && lead.reviews != null && b.reviews > lead.reviews;
+  const bigger = outReviews(a) ? a
+    : businesses.slice(2).filter(outReviews).sort((x, y) => y.reviews - x.reviews)[0];
+  const proof = bigger
+    ? `Searchers comparing your ${num(lead.reviews)} reviews to ${possessive(bigger.name)} ${num(bigger.reviews)} will naturally pick the larger profile as the safer decision.`
+    : lead.reviews != null && a
+      ? `You out-review ${a.name} (${num(lead.reviews)} to ${num(a.reviews ?? 0)}), yet they still hold ${a.metrics.top3Count} more top-3 spots. Volume alone is not what is holding you back.`
+      : `Your review count is the first thing a searcher compares side by side, and it decides which listing looks like the safer choice.`;
 
-  // The fix
-  const fix = {
-    title: 'The Turnkey Fix',
-    text: `Our Review Engine requests feedback from every customer upon each ${niche.transactionEvent}, automatically posts keyword-rich replies, and expands your green pins for ${offer.price}.`,
-  };
+  // ---- Action plan --------------------------------------------------------
+  // A. Recency outweighs historical volume.
+  const lv = ls.measured ? ls.velocityPerMonth : null;
+  const av = as.measured ? as.velocityPerMonth : null;
+  const recency = lv != null && av != null && lv < av
+    ? `You are adding ${lv} review${lv === 1 ? '' : 's'} a month to ${possessive(aName)} ${av}. Consistent monthly reviews signal fresh momentum to Google, helping you steadily overtake older, dormant listings.`
+    : `Activating consistent monthly reviews signals fresh momentum to Google, helping you steadily overtake older, dormant listings.`;
+
+  // B. Semantic keyword indexing through owner replies.
+  const tokens = serviceTokens(keyword, location, niche).map((t) => `“${t}”`).join(', ');
+  const lp = ls.measured ? ls.ownerReplyRate : null;
+  const replies = `${lp != null && lp < 1 ? `Today ${pct(lp)} of your reviews get a reply. ` : ''}Posting owner replies to 100% of reviews that name your services (${tokens}) keeps your profile active and puts those terms in front of Google.`;
+
+  // C. Industry-tailored automation.
+  const automation = `The Review Engine asks 100% of real customers for a review right after each ${niche.transactionEvent}, with no filtering, so reviews keep coming without your team having to remember.`;
 
   return {
-    findings: [one, two, three, four].map((f, i) => ({ n: i + 1, ...f })),
-    fix,
+    diagnosis: [
+      { key: 'proximity', title: 'Proximity', text: proximity },
+      { key: 'perimeter', title: 'The perimeter drop', text: perimeter },
+      { key: 'proof', title: 'The social-proof gap', text: proof },
+    ],
+    plan: [
+      { key: 'recency', title: 'Recency beats volume', text: recency },
+      { key: 'keywords', title: 'Replies that name your services', text: replies },
+      { key: 'automation', title: 'Hands-off collection', text: automation },
+    ],
   };
+}
+
+/** "Blue Sky Residences" -> "Blue Sky Residences'", "Summit" -> "Summit's". */
+export function possessive(name) {
+  const n = String(name || '').trim();
+  return /s$/i.test(n) ? `${n}'` : `${n}'s`;
 }
 
 function cap(w) { return w ? w[0].toUpperCase() + w.slice(1) : w; }
@@ -379,26 +358,28 @@ export function buildOutreachEmail({ lead, rivals, location, ownerName, niche: n
 /** The follow-up email that goes out with the report attached. */
 export function buildReportEmail({ report, narrative, headline, offer, sender, links, ownerName }) {
   const lead = report.businesses[0];
-  const lines = [
+  return [
     `Subject: ${lead.name} — your local Google visibility report`,
     ``,
     `Hi ${String(ownerName || '').trim() || 'there'},`,
     ``,
     `Here's the report I mentioned. ${headline.text}`,
     ``,
-    ...narrative.findings.map((f) => `${f.n}. ${f.title}: ${f.text}`),
+    `How you rank today:`,
+    ...narrative.diagnosis.map((d) => `- ${d.text}`),
     ``,
-    `${narrative.fix.title}: ${narrative.fix.text}`,
+    `What moves the pins:`,
+    ...narrative.plan.map((d) => `- ${d.text}`),
     ``,
-    `${offer.guarantee}`,
+    `${offer.name}: ${offer.microcopy}.`,
+    offer.guarantee,
     ``,
     `If you'd like to start: ${links.activate}`,
     ``,
     ...signature(sender),
     ``,
     `Not relevant? Just reply "no" and I won't follow up.`,
-  ];
-  return lines.join('\n');
+  ].join('\n');
 }
 
 /* ------------------------------------------------------------------------ */
@@ -412,6 +393,7 @@ export function buildExecutive({ report, signals, offer, sender, niche, links, o
   return {
     headline,
     legend: legendText(report.spacingMi),
+    city: headline.city,
     location: formatLocation(report.location, report.business),
     visibility: {
       share: lead.metrics.top3Share,

@@ -203,6 +203,11 @@ app.post('/api/generate', async (req, res) => {
       onProgress: (m) => console.log(`[generate] ${m}`),
     });
 
+    // The raw grid (coordinates, every local pack, per-point ranks) is no
+    // longer shown on the page. It is kept on disk and pointed to here.
+    console.log(`[generate] ${result.report.business.name}: raw data ${result.files.json}`);
+    console.log(`[generate] checkout ${result.executive.links.activate}`);
+
     res.json({
       id: result.id,
       slug: result.slug,

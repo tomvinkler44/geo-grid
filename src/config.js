@@ -28,10 +28,10 @@ export const config = {
     name: env('OFFER_NAME', 'Local Review Engine & Geo-Expansion'),
     price: env('OFFER_PRICE', '$297/mo'),
     cta: env('OFFER_CTA', 'Start 60-Day Review Engine — {price}'),
-    microcopy: env('OFFER_MICROCOPY', '{price} flat · No contracts · 60-day guarantee · 15-min setup'),
+    microcopy: env('OFFER_MICROCOPY', '{price} flat · No contracts · Cancel anytime'),
     checkoutMicrocopy: env('OFFER_CHECKOUT_MICROCOPY', 'Instant 15-Min Setup · No Setup Fees · Month-to-Month'),
     guarantee: env('OFFER_GUARANTEE',
-      '60-Day Momentum Guarantee: More reviews and more green pins on your next heatmap, or we refund month two in full. Cancel anytime with one click.'),
+      '60-Day Momentum Guarantee: More reviews and more green pins on your Day 60 audit, or month two is refunded in full.'),
     goalPins: Number(env('OFFER_GOAL_PINS', '15')),
   },
   /** Who the audit and emails come from. */
@@ -44,7 +44,7 @@ export const config = {
     // alone does not satisfy it, so this has no default.
     postalAddress: env('SENDER_POSTAL_ADDRESS', ''),
     email: env('SENDER_EMAIL', 'hello@promoflix.ai'),
-    phone: env('SENDER_PHONE', '(408) 555-0199'),
+    phone: env('SENDER_PHONE', '(408) 462-5198'),
   },
   /**
    * Where the report's checkout link points. The PDF is opened on the

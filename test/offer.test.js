@@ -16,8 +16,8 @@ test('one offer definition: the button and micro-copy carry the price', () => {
   const o = resolvedOffer();
   assert.equal(o.name, 'Local Review Engine & Geo-Expansion');
   assert.equal(o.cta, 'Start 60-Day Review Engine — $297/mo');
-  assert.equal(o.microcopy, '$297/mo flat · No contracts · 60-day guarantee · 15-min setup');
-  assert.match(o.guarantee, /^60-Day Momentum Guarantee: More reviews and more green pins/);
+  assert.equal(o.microcopy, '$297/mo flat · No contracts · Cancel anytime');
+  assert.equal(o.guarantee, '60-Day Momentum Guarantee: More reviews and more green pins on your Day 60 audit, or month two is refunded in full.');
   const changed = resolvedOffer({ ...o, price: '$349/mo', cta: 'Start 60-Day Review Engine — {price}', microcopy: '{price} flat' });
   assert.equal(changed.cta, 'Start 60-Day Review Engine — $349/mo', 'a price change reaches the button');
 });
@@ -43,12 +43,12 @@ test('the sender flags a fictional phone number and a missing postal address', (
 });
 
 test('audit links point at the public site with the audit data attached', () => {
-  const l = auditLinks('pacific-coast-4f2a1', { business: 'Pacific Coast', currPins: 4, leader: 'Summit', niche: 'assisted-living', empty: '' });
+  const l = auditLinks('pacific-coast-4f2a1', { biz: 'Pacific Coast', pins: 4, lead: 'Summit', empty: '' });
   const u = new URL(l.activate);
   assert.equal(u.pathname, '/audit/pacific-coast-4f2a1/activate');
-  assert.equal(u.searchParams.get('business'), 'Pacific Coast');
-  assert.equal(u.searchParams.get('currPins'), '4');
-  assert.equal(u.searchParams.get('leader'), 'Summit');
+  assert.equal(u.searchParams.get('biz'), 'Pacific Coast');
+  assert.equal(u.searchParams.get('pins'), '4');
+  assert.equal(u.searchParams.get('lead'), 'Summit');
   assert.ok(!u.searchParams.has('empty'), 'blank values are left out');
   assert.equal(l.short, 'promoflix.ai/audit/pacific-coast-4f2a1');
   assert.ok(!/localhost/.test(l.activate));
@@ -80,4 +80,24 @@ test('Competitor B always out-ranks the prospect, or is left out entirely', asyn
     if (peer) assert.ok(peer.top3Share > lead, `${kw}: peer ${peer.top3Share} must beat lead ${lead}`);
     else assert.equal(weakPeer, true);
   }
+});
+
+test('the default sender is a real, dialable number', () => {
+  assert.equal(resolvedSender().phone, '(408) 462-5198');
+  assert.equal(resolvedSender().phoneIsFictional, false);
+});
+
+test('the printed report carries no raw-data accordion or data link', async () => {
+  const html = await fs.readFile(path.join(ROOT, 'public/index.html'), 'utf8');
+  const js = await fs.readFile(path.join(ROOT, 'public/app.js'), 'utf8');
+  assert.ok(!/View raw 25-point grid/i.test(html + js));
+  assert.ok(!/xRaw|renderRaw|btnJson/.test(html + js));
+});
+
+test('print CSS: one US Letter sheet, no room for browser headers, clipped to one page', async () => {
+  const html = await fs.readFile(path.join(ROOT, 'public/index.html'), 'utf8');
+  assert.match(html, /@page \{ size: letter portrait; margin: 0; \}/);
+  assert.match(html, /padding: 0\.35in 0\.4in !important/);
+  assert.match(html, /height: 11in !important/);
+  assert.match(html, /overflow: hidden !important/);
 });

@@ -126,13 +126,12 @@ export async function generateExecutive(scan, competitors, opts = {}) {
   // Built once without links to learn the leader, then the links go in.
   const draft = buildExecutive({ report, signals, offer, sender, niche, links: { activate: '', short: '' }, ownerName: opts.ownerName });
   const summary = checkoutSummary({ report, executive: draft, niche, slugId });
+  // Kept short so it survives email clients and fits on the printed page.
+  // Niche, city and totals come from the saved summary behind the slug.
   const links = auditLinks(slugId, {
-    business: summary.business,
-    currPins: summary.currPins,
-    leader: summary.leader,
-    leaderPins: summary.leaderPins,
-    niche,
-    city: summary.city,
+    biz: summary.business,
+    pins: summary.currPins,
+    lead: summary.leader,
   });
   const executive = buildExecutive({ report, signals, offer, sender, niche, links, ownerName: opts.ownerName });
 

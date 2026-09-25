@@ -254,111 +254,76 @@
   });
 
   /* --------------------- step 4: the deliverable --------------------- */
-  var ROLE_TAG = ['Your business', 'Competitor A · Market dominator', 'Competitor B · Nearby peer'];
+  var ROLE_TAG = ['Your Business', 'Competitor A: Market Dominator', 'Competitor B: Nearby Peer'];
 
   function renderExecutive(d) {
     var rep = d.report, ex = d.executive, b = rep.businesses.slice(0, 3);
 
-    $('xDate').textContent = new Date(rep.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    $('xName').textContent = rep.business.name + '  ·  “' + rep.keyword + '”  ·  ' + ex.location;
     $('xHeadline').textContent = ex.headline.text;
-    var parts = ex.headline.sub.split(' vs. ');
-    $('xSubbar').innerHTML = parts.length === 2
-      ? '<span class="font-bold text-red-600">' + esc(parts[0]) + '</span><span class="text-slate-400">vs.</span><span class="font-bold text-emerald-700">' + esc(parts[1]) + '</span>'
-      : '<span class="font-bold">' + esc(ex.headline.sub) + '</span>';
+    $('xContext').textContent = ex.headline.context;
 
-    // Maps: two columns when there is no qualifying peer, three otherwise.
-    $('xPanels').className = 'print-gap grid gap-4 ' + (b.length >= 3 ? 'grid-cols-3' : b.length === 2 ? 'grid-cols-2' : 'grid-cols-1');
+    // Maps: the prospect first, anchored with an emerald border and badge.
+    $('xPanels').className = 'print-gap grid gap-3 ' + (b.length >= 3 ? 'grid-cols-3' : b.length === 2 ? 'grid-cols-2' : 'grid-cols-1');
     $('xPanels').innerHTML = b.map(function (p, i) {
-      var m = p.metrics;
-      return '<figure class="print-panel rounded-xl border-2 ' + (i === 0 ? 'border-emerald-500' : 'border-slate-200') + ' overflow-hidden bg-white">' +
-        '<figcaption class="px-2.5 py-1.5 ' + (i === 0 ? 'bg-emerald-50' : 'bg-slate-50') + ' border-b">' +
-          '<span class="print-label block text-[9px] font-bold uppercase tracking-wide ' + (i === 0 ? 'text-emerald-700' : 'text-slate-500') + '">' + ROLE_TAG[i] + '</span>' +
-          '<span class="print-panel-name block text-xs font-semibold truncate">' + esc(p.name) + '</span>' +
+      var m = p.metrics, you = i === 0;
+      return '<figure class="print-panel rounded-xl overflow-hidden bg-white ' + (you ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/15' : 'border border-slate-200') + '">' +
+        '<figcaption class="px-2.5 py-1.5 border-b ' + (you ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50') + '">' +
+          '<span class="print-eyebrow inline-block text-[9px] font-bold uppercase tracking-wide ' +
+            (you ? 'bg-emerald-600 text-white rounded px-1.5 py-0.5' : 'text-slate-500') + '">' + ROLE_TAG[i] + '</span>' +
+          '<span class="print-panel-name block text-xs font-semibold text-slate-900 truncate mt-0.5">' + esc(p.name) + '</span>' +
         '</figcaption>' +
         '<img src="' + d.panelUrls[i] + '" alt="Ranking grid for ' + esc(p.name) + '" class="w-full block" />' +
-        '<div class="print-label px-2.5 py-1 text-[11px] flex items-center justify-between border-t">' +
-          '<span><b>' + m.top3Count + '</b>/' + rep.points.length + ' in top 3</span>' +
-          '<span class="font-bold ' + (i === 0 ? 'text-red-600' : 'text-slate-700') + '">' + Math.round(m.top3Share * 100) + '%</span>' +
+        '<div class="print-small px-2.5 py-1 text-[11px] flex items-center justify-between border-t">' +
+          '<span class="text-slate-600"><b class="text-slate-900">' + m.top3Count + '</b>/' + rep.points.length + ' in top 3</span>' +
+          '<span class="font-bold ' + (you ? 'text-red-600' : 'text-slate-900') + '">' + Math.round(m.top3Share * 100) + '%</span>' +
         '</div></figure>';
     }).join('');
 
     var dot = function (color, label) {
-      return '<span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:' + color + '"></span>' + label + '</span>';
+      return '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:' + color + '"></span>' + label + '</span>';
     };
     $('xLegend').innerHTML =
-      dot('#22c55e', '1–3 Visible') + dot('#f59e0b', '4–10 Weak') + dot('#ef4444', '11+ Invisible') +
-      '<span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full border-2 border-slate-900"></span>Circled pin = business address</span>' +
-      '<span class="text-slate-400">|</span><span>' + esc(rep.spacingMi) + ' mi grid spacing</span>';
+      dot('#22c55e', '1–3 Visible (Green)') + dot('#f59e0b', '4–10 Weak (Amber)') + dot('#ef4444', '11+ Invisible (Red)') +
+      '<span class="text-slate-300">|</span>' +
+      '<span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-full border-2 border-slate-900"></span>Circled pin = Your Address</span>' +
+      '<span class="text-slate-300">|</span><span>' + esc(rep.spacingMi) + ' mi grid spacing</span>';
 
     var sig = ex.signals;
     $('xSignals').innerHTML = [sig.reviews, sig.velocity, sig.reply].map(function (c) {
-      return '<div class="print-pad rounded-xl border bg-slate-50 px-3 py-2">' +
-        '<p class="print-label text-[10px] font-bold uppercase tracking-wide text-slate-500">' + esc(c.label) + '</p>' +
-        '<p class="print-card-value text-lg font-extrabold ' + (c.measured ? '' : 'text-slate-400') + '">' + esc(c.prospect) +
-          ' <span class="print-label text-[11px] font-medium text-slate-500">vs ' + esc(c.benchmark) + '</span></p>' +
+      return '<div class="print-card rounded-lg border border-slate-200 bg-white px-3 py-2">' +
+        '<p class="print-eyebrow text-[10px] font-bold uppercase tracking-wide text-slate-500">' + esc(c.label) + '</p>' +
+        '<p class="print-card-value text-lg font-extrabold leading-tight mt-0.5 ' + (c.measured ? 'text-slate-900' : 'text-slate-400') + '">' + esc(c.prospect) +
+          '<span class="font-semibold text-slate-400"> vs </span><span class="text-slate-700">' + esc(c.benchmark) + '</span></p>' +
+        '<p class="print-small text-[11px] text-slate-500 mt-0.5">' + esc(c.verdict) + '</p>' +
       '</div>';
     }).join('');
 
-    $('xFindings').innerHTML = ex.narrative.findings.map(function (f) {
-      return '<li class="print-sentence text-sm leading-snug"><b>' + f.n + '. ' + esc(f.title) + ':</b> ' + esc(f.text) + '</li>';
-    }).join('');
-    $('xFix').innerHTML = '<b>' + esc(ex.narrative.fix.title) + ':</b> ' + esc(ex.narrative.fix.text);
+    var item = function (accent) {
+      return function (x) {
+        return '<li class="text-[13px] leading-snug text-slate-700 pl-3 border-l-2 ' + accent + '">' +
+          '<b class="text-slate-900">' + esc(x.title) + '.</b> ' + esc(x.text) + '</li>';
+      };
+    };
+    $('xDiagnosis').innerHTML = ex.narrative.diagnosis.map(item('border-red-300')).join('');
+    $('xPlan').innerHTML = ex.narrative.plan.map(item('border-emerald-400')).join('');
 
     var offer = ex.offer;
     $('xOfferName').textContent = offer.name;
+    $('xMicro').textContent = offer.microcopy;
     $('xGuarantee').textContent = offer.guarantee;
     $('xCta').textContent = offer.cta + ' →';
     $('xCta').href = ex.links.activate;
-    $('xMicro').textContent = offer.microcopy;
     $('xShort').textContent = ex.links.short;
 
     var s = ex.sender;
-    $('xSender').textContent = [s.company, s.name, s.postalAddress || s.cityState, s.email, s.phone].filter(Boolean).join('  ·  ');
+    $('xSender').textContent = [s.company, s.name, s.postalAddress || s.cityState, s.email, s.phone].filter(Boolean).join(' · ');
 
     // "Save as PDF" uses the page title as the file name.
     document.title = rep.business.name + ' — Local Visibility Audit';
-
-    renderRaw(d);
-    $('btnJson').href = d.jsonUrl;
     $('empty').classList.add('hidden');
     $('exec').classList.remove('hidden');
     $('utility').classList.remove('hidden');
     $('exec').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function renderRaw(d) {
-    var rep = d.report;
-    var names = rep.businesses.map(function (b) { return esc(b.name); });
-    var rows = rep.points.map(function (p) {
-      return '<tr class="border-b last:border-0">' +
-        '<td class="py-1 pr-3">' + (p.row + 1) + ',' + (p.col + 1) + (p.isCenter ? ' ◯' : '') + '</td>' +
-        '<td class="py-1 pr-3 tabular-nums">' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5) + '</td>' +
-        '<td class="py-1 pr-3">' + p.bearing + '</td>' +
-        '<td class="py-1 pr-3 tabular-nums">' + p.distanceMi.toFixed(2) + '</td>' +
-        p.ranks.map(function (r) { return '<td class="py-1 pr-3 font-semibold tabular-nums">' + (r == null ? '20+' : r) + '</td>'; }).join('') +
-      '</tr>';
-    }).join('');
-    var kw = d.executive.keywordCoverage;
-    var sigNotes = d.signals.map(function (s, i) {
-      return '<li><b>' + names[i] + ':</b> ' + esc(s.source ? s.source + ' — ' + s.note : s.note) + '</li>';
-    }).join('');
-    var approx = rep.business.approximate
-      ? '<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">The grid is centered on the city center, not an exact street address (sample data, or no address could be resolved). Paste exact coordinates in step 1 for a precise center.</p>'
-      : '';
-    $('xRawBody').innerHTML = approx +
-      '<div class="grid sm:grid-cols-2 gap-4">' +
-        '<div><p class="font-semibold mb-1">Category / keyword match</p><p class="text-slate-600">' + (kw.checked
-          ? (kw.matched ? 'The listing name or category carries every search term.' : 'Missing from the listing name and category: <b>' + esc(kw.missing.join(', ')) + '</b>')
-          : 'Not checked.') + '</p></div>' +
-        '<div><p class="font-semibold mb-1">Review signal sources</p><ul class="text-slate-600 list-disc pl-4 space-y-0.5">' + sigNotes + '</ul></div>' +
-      '</div>' +
-      '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr class="text-left border-b">' +
-        '<th class="py-1 pr-3">Cell</th><th class="py-1 pr-3">Lat, Lng</th><th class="py-1 pr-3">Bearing</th><th class="py-1 pr-3">Miles</th>' +
-        names.map(function (n) { return '<th class="py-1 pr-3">' + n + '</th>'; }).join('') +
-      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<p class="text-xs text-slate-500">Checkout link for this audit: <a class="underline break-all" href="' + esc(d.executive.links.activate) + '" target="_blank" rel="noopener">' + esc(d.executive.links.activate) + '</a></p>' +
-      '<p class="text-xs text-slate-500">Full machine-readable output: <a class="underline" href="' + d.jsonUrl + '" download>download the JSON</a>.</p>';
   }
 
   /* --------------------------- utility bar --------------------------- */

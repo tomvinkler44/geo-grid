@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { summarize, unmeasured, WINDOW_DAYS } from '../src/providers/reviews.js';
 import { recommendCompetitors, collectCandidates } from '../src/candidates.js';
-import { buildSignals, buildNarrative, buildHeadline, buildOutreachEmail, formatLocation, keywordCoverage } from '../src/executive.js';
+import { buildSignals, buildNarrative, buildHeadline, buildOutreachEmail, formatLocation, keywordCoverage, possessive } from '../src/executive.js';
 import { scanGrid, finalizeAudit } from '../src/audit.js';
 
 const OFFER = { name: 'Local Review Engine & Geo-Expansion', price: '$297/mo', cta: 'Start 60-Day Review Engine — $297/mo' };
@@ -57,7 +57,7 @@ test('cards for unmeasured signals say so instead of asserting a number', () => 
   assert.equal(cards.velocity.prospect, 'not measured');
   assert.equal(cards.reply.prospect, 'not measured');
   assert.equal(cards.velocity.measured, false);
-  assert.match(cards.reply.verdict, /reviews endpoint/i);
+  assert.match(cards.reply.verdict, /reviews data source/i);
   // The review-count card only needs the SERP, so it still works.
   assert.equal(cards.reviews.measured, true);
   assert.equal(cards.reviews.prospect, '121');
@@ -92,54 +92,96 @@ async function mockReport() {
   return finalizeAudit(scan, [dominator, peer].filter(Boolean));
 }
 
-test('the narrative is four numbered findings plus the fix', async () => {
+const measuredSignals = (report) => report.businesses.map((b, i) => summarize(
+  [{ time: Date.now() - 5 * 86400000, hasOwnerReply: i > 0 }, { time: Date.now() - 9 * 86400000, hasOwnerReply: i > 0 }],
+  { totalReviews: b.reviews, source: 'mock', sampleIsComplete: false },
+));
+
+test('the narrative is two columns of three: diagnosis and action plan', async () => {
   const report = await mockReport();
-  const signals = report.businesses.map((b, i) => summarize(
-    [{ time: Date.now() - 5 * 86400000, hasOwnerReply: i > 0 }],
-    { totalReviews: b.reviews, source: 'mock', sampleIsComplete: false },
-  ));
-  const { findings, fix } = buildNarrative({ report, signals, offer: OFFER, niche: 'assisted-living' });
-  assert.equal(findings.length, 4);
-  findings.forEach((f, i) => {
-    assert.equal(f.n, i + 1);
-    assert.ok(f.title && f.text.length > 30, `finding ${i + 1} should be substantial`);
-  });
-  assert.equal(findings[0].title, 'Profile Basics');
-  assert.equal(findings[1].title, 'The Distance Drop');
-  assert.equal(fix.title, 'The Turnkey Fix');
-  assert.match(fix.text, /family tour or intake consultation/, 'the fix uses the niche vocabulary');
-  assert.match(fix.text, /\$297\/mo/);
+  const { diagnosis, plan } = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER, niche: 'assisted-living' });
+  assert.deepEqual(diagnosis.map((d) => d.key), ['proximity', 'perimeter', 'proof']);
+  assert.deepEqual(plan.map((d) => d.key), ['recency', 'keywords', 'automation']);
+  for (const x of [...diagnosis, ...plan]) assert.ok(x.title && x.text.length > 40, x.key);
+  assert.match(plan[2].text, /100% of real customers/);
+  assert.match(plan[2].text, /family tour or intake consultation/, 'assisted living vocabulary');
+  assert.match(plan[1].text, /“assisted living”/, 'names the searched service');
 });
 
-test('finding four never claims a reply rate that was not measured', async () => {
+test('tree services and contractors get job-completion wording', async () => {
   const report = await mockReport();
-  const { findings } = buildNarrative({
-    report, signals: report.businesses.map((b) => unmeasured(b.reviews)), offer: OFFER, niche: 'tree-services',
-  });
-  const four = findings[3];
-  assert.notEqual(four.title, 'Unanswered Reviews & Inactivity', 'swapped for a finding that was measured');
-  assert.ok(!/owner reply/i.test(four.text));
-  assert.ok(!/\b0%/.test(four.text));
+  const { plan } = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER, niche: 'tree-services' });
+  assert.match(plan[2].text, /completed tree removal job/);
+  const generic = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER, niche: 'generic' });
+  assert.match(generic.plan[2].text, /completed customer service/);
 });
 
-test('profile basics only claims fields a resolver confirmed', async () => {
+test('proximity never claims a strong doorstep rank the map contradicts', async () => {
+  const report = await mockReport();
+  const centre = report.points.find((p) => p.isCenter);
+  centre.ranks[0] = 8; // the prospect is weak even at its own address
+  const { diagnosis } = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER });
+  assert.ok(!/ranks you #\d at your door, holding the top 3/.test(diagnosis[0].text));
+  assert.match(diagnosis[0].text, /even at your door you rank #8/);
+});
+
+test('"verifies your address" only when a resolver confirmed it', async () => {
   const report = await mockReport();
   report.business.verifiedFields = [];
-  const { findings } = buildNarrative({ report, signals: report.businesses.map((b) => unmeasured(b.reviews)), offer: OFFER });
-  assert.ok(!/verified/i.test(findings[0].text), 'nothing was verified, so nothing is claimed');
-  report.business.verifiedFields = ['address', 'phone', 'hours'];
-  const again = buildNarrative({ report, signals: report.businesses.map((b) => unmeasured(b.reviews)), offer: OFFER });
-  assert.match(again.findings[0].text, /^Address, phone, and hours are properly verified/);
+  const a = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER });
+  assert.ok(!/verifies/.test(a.diagnosis[0].text));
+  report.business.verifiedFields = ['address'];
+  const b = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER });
+  assert.match(b.diagnosis[0].text, /^Google verifies your address/);
 });
 
-test('the headline compares the prospect with the rival holding the most top-3 spots', async () => {
+test('the perimeter line only mentions the red zone when there is one', async () => {
+  const report = await mockReport();
+  for (const p of report.points) if (p.ranks[0] == null || p.ranks[0] > 10) p.ranks[0] = 6;
+  const { diagnosis } = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER });
+  assert.ok(!/red zone/.test(diagnosis[1].text), diagnosis[1].text);
+});
+
+test('the proof line compares with Competitor A, the same business as the review card', async () => {
+  const report = await mockReport();
+  const a = report.businesses[1];
+  const { diagnosis } = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER });
+  if (a.reviews > report.businesses[0].reviews) {
+    assert.ok(diagnosis[2].text.includes(possessive(a.name)), diagnosis[2].text);
+  }
+  const cards = buildSignals({ businesses: report.businesses, signals: measuredSignals(report) });
+  assert.match(cards.reviews.benchmark, new RegExp(`^${a.reviews} leader$`));
+});
+
+test('unmeasured replies are never described as a percentage', async () => {
+  const report = await mockReport();
+  const { plan } = buildNarrative({ report, signals: report.businesses.map((b) => unmeasured(b.reviews)), offer: OFFER });
+  assert.ok(!/Today \d+% of your reviews/.test(plan[1].text));
+});
+
+test('metric-card subtext only claims a problem when the prospect is behind', () => {
+  const businesses = [{ name: 'Lead', reviews: 900, metrics: {} }, { name: 'A', reviews: 100, metrics: {} }];
+  const cards = buildSignals({ businesses, signals: [unmeasured(900), unmeasured(100)] });
+  assert.equal(cards.reviews.verdict, 'You lead on review volume');
+  const behind = buildSignals({ businesses: [{ ...businesses[0], reviews: 50 }, businesses[1]], signals: [unmeasured(50), unmeasured(100)] });
+  assert.equal(behind.reviews.verdict, 'Causes searcher hesitation');
+  assert.equal(behind.reviews.prospect, '50');
+  assert.equal(behind.reviews.benchmark, '100 leader');
+});
+
+test('headline: [Business] captures X% of local searches in [City]. [Competitor A] captures Y%.', async () => {
   const report = await mockReport();
   const h = buildHeadline(report);
-  const lead = report.businesses[0].metrics.top3Count;
-  const best = Math.max(...report.businesses.slice(1).map((b) => b.metrics.top3Count));
-  assert.match(h.text, new RegExp(`top 3 for ${lead} of 25 nearby searches`));
-  assert.ok(h.text.includes(`is in ${best}.`), h.text);
-  assert.match(h.sub, /% your coverage vs\. \d+% market leader/);
+  const [lead, a] = report.businesses;
+  const x = Math.round(lead.metrics.top3Share * 100);
+  const y = Math.round(a.metrics.top3Share * 100);
+  assert.equal(h.text, `${lead.name} captures ${x}% of local searches in Sunnyvale. ${a.name} captures ${y}%.`);
+  assert.match(h.context, /^Search Term: “assisted living sunnyvale” · Area Tested: 25 Neighborhood Coordinates · Date: \w+ \d{1,2}, \d{4}$/);
+});
+
+test('possessives read naturally', () => {
+  assert.equal(possessive('Summit Senior Living'), "Summit Senior Living's");
+  assert.equal(possessive('Blue Sky Senior Residences'), "Blue Sky Senior Residences'");
 });
 
 test('locations are formatted US-style with no resolver notes', () => {

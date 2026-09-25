@@ -29,7 +29,7 @@ The app walks through four steps:
 | **1 · Business details** | Name, city/state or zip, optional street address (pins the exact listing when names collide), keyword, grid spacing. |
 | **2 · Recommended rivals** | The 25-point scan runs once, then two archetypes are proposed: the **Market Dominator** (most reviewed of the widest-reaching businesses) and the **Nearby Direct Peer** (closest rival that is at least level with the prospect). Each card shows review count, rating and why it was chosen. Either can be overridden with a typed name. |
 | **3 · Generate** | *Approve Rivals & Generate Executive Audit*. Re-reads the stored scan, fetches review signals, draws the three maps. No second scan. |
-| **4 · Executive audit** | One US Letter page: a comparison headline ("You're in Google's top 3 for 4 of 25 nearby searches. Summit is in 18."), the 3-way heatmap with legend, three signal cards, four findings plus the fix, and a dark CTA bar whose button is a real link into the personalized checkout. A floating bar offers **Export / Print PDF**, **Copy Report Email** and **Copy Outreach Email**. Raw coordinates sit in a collapsed accordion. |
+| **4 · Executive audit** | Exactly one US Letter page: the headline "[Business] captures X% of local searches in [City]. [Competitor A] captures Y%.", a context strip, the 3-way heatmap with legend, three metric cards benchmarked against Competitor A, a two-column narrative (diagnosis / action plan), and a light offer card whose emerald button links into the personalized checkout. A floating bar (screen only) offers **Export / Print PDF**, **Copy Report Email** and **Copy Outreach Email**. Raw grid data is not shown; it is written to `output/*.json` and its path logged by the server. |
 
 ### What the three signal cards need
 
@@ -139,7 +139,8 @@ what is configured.
 ## Checkout and compliance
 
 Each audit gets a slug. The printed button links to
-`PUBLIC_BASE_URL/audit/<slug>/activate?business=…&currPins=…&leader=…&niche=…`, and the plain-text
+`PUBLIC_BASE_URL/audit/<slug>/activate?biz=…&pins=…&lead=…` (older `business`/`currPins`/`leader`
+links still work), and the plain-text
 fallback `promoflix.ai/audit/<slug>` works on its own because a short public summary is saved per
 audit. The checkout page, its two small APIs, the stylesheet and fonts are exempt from
 `APP_PASSWORD`, so a prospect never sees the admin prompt; everything else stays gated. Values from
@@ -172,7 +173,16 @@ project a working afternoon. Rebuild the stylesheet after editing markup or clas
 npm run build:css
 ```
 
-`npm start` builds it automatically if it is missing. The print layout is enforced by an
+`npm start` builds it automatically if it is missing.
+
+**Print.** `@page` is `size: letter portrait; margin: 0`, and the 0.35in × 0.4in border is padding on
+the report. That is deliberate: Chrome draws its date, URL and "1/1" inside the @page margin, so a
+non-zero margin brings them back. The report box is fixed at 8.5in × 11in with overflow hidden so it
+can never spill to a second page, and the layout is tested to fit with room to spare: about 0.8in
+normally, 0.4in with a very long business name and keyword. In browsers other than Chrome, untick
+"Headers and footers" in the print dialog if it appears.
+
+The print layout is enforced by an
 `@media print` block that hides the composer and floating bar and tightens type so the audit
 lands on a single US Letter page; it is verified in CI-style by rendering the page through a
 headless browser's PDF export and asserting the page count.
@@ -192,7 +202,7 @@ src/render-compare.js three-panel comparison sheet (PNG, for email)
 src/render-panel.js   one grid panel per business, for the HTML report
 src/draw.js           shared canvas primitives and palette
 src/candidates.js     archetype selection for step 2
-src/executive.js      headline, signal cards, the four findings + fix, both emails
+src/executive.js      headline, metric cards, two-column narrative, both emails
 src/niches.js         industry vocabulary (tree services, assisted living, generic)
 src/offer.js          the one offer/sender definition, and audit links
 src/ranks.js          rank bands: 1–3 visible, 4–10 weak, 11+ invisible

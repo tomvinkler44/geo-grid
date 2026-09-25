@@ -123,7 +123,12 @@ export function recommendCompetitors(points, lead) {
   // ahead - about four pins on a 25-point grid - before settling for any.
   const CLEAR_MARGIN = 0.15;
   const clearly = beating.filter((c) => c.top3Share >= leadCoverage + CLEAR_MARGIN);
+  // The sweet spot for a peer is roughly 35-50% coverage: plainly ahead of the
+  // prospect, but not so dominant it reads as a second market leader.
+  const PEER_BAND = [0.35, 0.5];
+  const inBand = clearly.filter((c) => c.top3Share >= PEER_BAND[0] && c.top3Share <= PEER_BAND[1]);
   const peer =
+    inBand.filter((c) => c.distanceMi != null).sort(byDistance)[0] ||
     clearly.filter((c) => reviewsOf(c) > leadReviews && c.distanceMi != null).sort(byDistance)[0] ||
     clearly.filter((c) => c.distanceMi != null).sort(byDistance)[0] ||
     beating.filter((c) => reviewsOf(c) > leadReviews && c.distanceMi != null).sort(byDistance)[0] ||
