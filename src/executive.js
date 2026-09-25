@@ -10,6 +10,7 @@ import { normalizeName } from './providers/match.js';
 import { haversineMi } from './geometry.js';
 import { inTop3, isInvisible, BAND_LABELS } from './ranks.js';
 import { getNiche } from './niches.js';
+import { coveragePhrase, radiusMi } from './spacing.js';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 const num = (n) => (n == null ? null : n.toLocaleString('en-US'));
@@ -169,10 +170,10 @@ export function buildHeadline(report) {
   const lead = businesses[0];
   const a = businesses[1] || null;
   const city = cityOf(location, report.business) || 'your area';
-  // The grid is (spacing x 4) miles *across*: 2 mi at the default spacing,
-  // i.e. a 1-mile radius. Saying "radius" here would double the claim.
-  const area = `${Number((report.spacingMi * 4).toFixed(1))}-mile area`;
-  const first = `${lead.name} captures ${pct(lead.metrics.top3Share)} of local searches across a ${area}.`;
+  // Distance wording comes from the scanned grid's own spacing (see
+  // spacing.js), so it changes with the dropdown and never overstates reach.
+  const area = coveragePhrase(report.spacingMi, city);
+  const first = `${lead.name} captures ${pct(lead.metrics.top3Share)} of local searches ${area}.`;
   const date = new Date(generatedAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   return {
     text: a ? `${first} ${a.name} captures ${pct(a.metrics.top3Share)}.` : first,
@@ -187,7 +188,7 @@ export function buildHeadline(report) {
 
 /** The compact legend printed directly under the maps. */
 export function legendText(spacingMi) {
-  return `● ${BAND_LABELS.visible} (Green)  ● ${BAND_LABELS.weak} (Amber)  ● ${BAND_LABELS.invisible} (Red)  |  Circled pin = Your Address  |  ${spacingMi} mi grid spacing`;
+  return `● ${BAND_LABELS.visible}  ● ${BAND_LABELS.weak}  ● ${BAND_LABELS.invisible}  |  Circled pin = Your Address  |  ${spacingMi} mi grid spacing`;
 }
 
 /** Real services for the vertical, named in the action plan's replies line. */
@@ -229,11 +230,17 @@ export function buildNarrative({ report, signals, offer, niche: nicheKey }) {
   }
 
   // 2. Reveal the perimeter drop.
+  // Tied to the grid's radius (spacing x 2), with the measured distance where
+  // red actually begins, so it scales with the spacing and matches the map.
+  const R = radiusMi(report.spacingMi);
+  const gridR = `${Number(R.toFixed(1))}-mile radius`;
   let perimeter;
-  if (blind) {
-    perimeter = `Beyond ${miles(blind.distanceMi)}, your listing drops into the red zone outside the top 10, handing calls across town to ${aName}.`;
+  if (blind && blind.distanceMi < R - 0.01) {
+    perimeter = `Beyond ${miles(blind.distanceMi)}, well inside your ${gridR}, your listing drops into the red zone outside the top 10, handing calls across town to ${aName}.`;
+  } else if (blind) {
+    perimeter = `At the edge of your ${gridR}, your listing drops into the red zone outside the top 10, handing calls across town to ${aName}.`;
   } else if (radius > 0) {
-    perimeter = `Beyond ${miles(radius)}, you slip to positions 4–10, below the fold, handing the first calls across town to ${aName}.`;
+    perimeter = `Beyond ${miles(radius)}, you slip to positions 4–10 across the rest of your ${gridR}, below the three listings most people call, handing the first calls to ${aName}.`;
   } else {
     perimeter = `Across the ${points.length} points tested you reach the top 3 in only ${lead.metrics.top3Count}, so proximity alone is not winning customers across town.`;
   }
@@ -256,7 +263,7 @@ export function buildNarrative({ report, signals, offer, niche: nicheKey }) {
   const lv = ls.measured ? ls.velocityPerMonth : null;
   const av = as.measured ? as.velocityPerMonth : null;
   const recency = lv != null && av != null && lv < av
-    ? `You are adding ${lv} review${lv === 1 ? '' : 's'} a month to ${possessive(aName)} ${av}. Consistent monthly reviews signal fresh momentum to Google, helping you steadily overtake older, dormant listings.`
+    ? `${lv === 0 ? `You gained no new reviews in the last 30 days; ${aName} gained ${av}.` : `You are adding ${lv} review${lv === 1 ? '' : 's'} a month to ${possessive(aName)} ${av}.`} Consistent monthly reviews signal fresh momentum to Google, helping you steadily overtake older, dormant listings.`
     : `Activating consistent monthly reviews signals fresh momentum to Google, helping you steadily overtake older, dormant listings.`;
 
   // B. Semantic keyword indexing through owner replies.

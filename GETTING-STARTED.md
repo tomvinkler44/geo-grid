@@ -82,7 +82,7 @@ numbered steps along the top. It walks you through them one at a time.
 3. Street address is optional. Fill it in when several businesses nearby have
    similar names, so the right one is picked.
 4. The search phrase, for example `assisted living sunnyvale`.
-5. Leave the spacing on 0.5 miles and leave **Mock mode** ticked. Mock mode
+5. Watch the **Grid spacing** box: as you type the city it picks a size for you, with a short green note saying why. You can change it, but the suggestion is usually right. Leave **Mock mode** ticked. Mock mode
    invents sample data so you can see how everything works without paying.
 6. Click **Scan market & find competitors**. This is the part that takes a
    moment, because it searches from 25 different points.

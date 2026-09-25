@@ -14,7 +14,7 @@ import { parseCoordinates } from './providers/geocode.js';
 import { config } from './config.js';
 import { inTop3, isVisible } from './ranks.js';
 
-export const SPACING_OPTIONS = [0.5, 1, 2];
+export const SPACING_OPTIONS = [0.5, 1, 1.5, 2];
 export const MAX_COMPETITORS = 2;
 /** Results kept per grid point: the local pack plus enough depth to rank rivals. */
 const RESULT_DEPTH = 20;

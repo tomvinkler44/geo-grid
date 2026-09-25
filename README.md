@@ -26,10 +26,31 @@ The app walks through four steps:
 
 | Step | What happens |
 | --- | --- |
-| **1 · Business details** | Name, city/state or zip, optional street address (pins the exact listing when names collide), keyword, grid spacing. |
+| **1 · Business details** | Name, city/state or zip, optional street address (pins the exact listing when names collide), keyword, industry, grid spacing. Spacing is **recommended as you type** the city and industry (see below) and can be overridden. |
 | **2 · Recommended rivals** | The 25-point scan runs once, then two archetypes are proposed: the **Market Dominator** (most reviewed of the widest-reaching businesses) and the **Nearby Direct Peer** (closest rival that is at least level with the prospect). Each card shows review count, rating and why it was chosen. Either can be overridden with a typed name. |
 | **3 · Generate** | *Approve Rivals & Generate Executive Audit*. Re-reads the stored scan, fetches review signals, draws the three maps. No second scan. |
-| **4 · Executive audit** | Exactly one US Letter page: the headline "[Business] captures X% of local searches across a 2-mile area. [Competitor A] captures Y%." (the area is the grid's width, so it reads 4 or 8 miles at wider spacing), a context strip, the 3-way heatmap with legend, three dark metric cards benchmarked against Competitor A, a two-column narrative (diagnosis / action plan), and a slate offer card: price and emerald checkout button, the three monthly deliverables, the guarantee and the signature. A floating bar (screen only) offers **Export / Print PDF**, **Copy Report Email** and **Copy Outreach Email**. Raw grid data is not shown; it is written to `output/*.json` and its path logged by the server. |
+| **4 · Executive audit** | Exactly one US Letter page: the headline "[Business] captures X% of local searches within 1 mile of your location. [Competitor A] captures Y%." The distance follows the grid spacing: 0.5 mi → "within 1 mile of your location", 1 / 1.5 / 2 mi → "across a 4- / 6- / 8-mile territory in [City]", a context strip, the 3-way heatmap with legend, three dark metric cards benchmarked against Competitor A, a two-column narrative (diagnosis / action plan), and a slate offer card: price and emerald checkout button, the three monthly deliverables, the guarantee and the signature. A floating bar (screen only) offers **Export / Print PDF**, **Copy Report Email** and **Copy Outreach Email**. Raw grid data is not shown; it is written to `output/*.json` and its path logged by the server. |
+
+### Grid spacing
+
+A 5×5 grid reaches two steps from the center pin, so **radius = spacing × 2** and **width = spacing ×
+4**. `src/spacing.js` derives every distance on the page from those two numbers: the headline, the
+legend, and the perimeter line ("At the edge of your 2-mile radius…", or "Beyond 1.4 miles, well inside
+your 2-mile radius…" when the red zone starts sooner).
+
+The recommendation is a heuristic from market density and business model:
+
+| Market | Contractor (dispatch) | Facility (customers visit) |
+| --- | --- | --- |
+| Urban core (SF, NYC boroughs, Chicago, Boston…) | 0.5 mi | 0.5 mi |
+| Suburban / standard metro (default) | 1.0 mi | 0.5 mi |
+| Sprawling metro (Houston, DFW, Phoenix, Orlando…) | 2.0 mi | 1.5 mi |
+| Rural (population under 10,000, from Open-Meteo) | 2.0 mi | 2.0 mi |
+
+Urban and sprawling markets come from short curated lists matched on city and state; anything
+unlisted is treated as suburban and the badge says so. Spacing must be settled before the scan,
+because competitors are found from the scan itself. Changing it afterwards triggers a new scan and,
+if a report exists, rebuilds it; in live mode the app asks first, since that is 25 more lookups.
 
 ### What the three signal cards need
 

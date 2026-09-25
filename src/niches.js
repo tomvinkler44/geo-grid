@@ -5,6 +5,7 @@
 export const NICHES = {
   'tree-services': {
     key: 'tree-services',
+    model: 'dispatch',   // crews drive to the customer
     label: 'Tree Services',
     serviceNoun: 'tree service',
     marketNoun: 'tree service companies',   // "I was looking at ___ in Dallas"
@@ -18,6 +19,7 @@ export const NICHES = {
   },
   'assisted-living': {
     key: 'assisted-living',
+    model: 'facility',   // families come to the building
     label: 'Assisted Living',
     serviceNoun: 'assisted living',
     marketNoun: 'assisted living communities',
@@ -30,6 +32,7 @@ export const NICHES = {
   },
   plumbing: {
     key: 'plumbing',
+    model: 'dispatch',
     label: 'Plumbing',
     serviceNoun: 'plumbing',
     marketNoun: 'plumbing companies',
@@ -42,6 +45,7 @@ export const NICHES = {
   },
   generic: {
     key: 'generic',
+    model: 'dispatch',
     label: 'General Contractor / Home Services',
     serviceNoun: 'local service',
     marketNoun: 'local service companies',

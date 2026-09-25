@@ -261,3 +261,33 @@ export async function geocodeBusiness(name, location, near, maxMilesAway = 40) {
 
 /** Exposed for the setup check so it can report which service answered. */
 export const GEOCODERS = { viaZippopotam, viaPhoton, viaOpenMeteo, viaNominatim };
+
+
+/**
+ * Population of a named place, or null. Used only to spot rural markets for
+ * the grid-spacing recommendation, so every failure is silent and cached.
+ */
+export async function placePopulation(location) {
+  const { city, stateName } = splitCityState(location);
+  if (!city) return null;
+  const store = await loadCache();
+  const key = `pop:${String(location).trim().toLowerCase()}`;
+  if (key in store) return store[key];
+  let pop = null;
+  try {
+    const j = await getJson(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=en&format=json`,
+      4000,
+    );
+    const rows = Array.isArray(j?.results) ? j.results : [];
+    const wanted = (stateName || '').toLowerCase();
+    const hit = (wanted && rows.find((r) => String(r.admin1 || '').toLowerCase() === wanted))
+      || rows.find((r) => r.country_code === 'US') || null;
+    pop = Number.isFinite(hit?.population) ? hit.population : null;
+  } catch {
+    pop = null;
+  }
+  store[key] = pop;
+  await saveCache();
+  return pop;
+}

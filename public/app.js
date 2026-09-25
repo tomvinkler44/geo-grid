@@ -3,7 +3,8 @@
   'use strict';
 
   var $ = function (id) { return document.getElementById(id); };
-  var state = { cfg: null, scan: null, chosen: [], result: null, step: 1, nicheTouched: false };
+  var state = { cfg: null, scan: null, chosen: [], result: null, step: 1, nicheTouched: false,
+    spacingTouched: false, rec: null, scanBody: null };
   var STEPS = ['Business', 'Rivals', 'Generate', 'Report'];
 
   /* ------------------------------ helpers ------------------------------ */
@@ -94,8 +95,87 @@
     }).join('');
   }).catch(function () {});
 
+  /* ------------------------- grid spacing ------------------------- */
+  // A 5x5 grid is (spacing x 4) miles across and (spacing x 2) miles in radius.
+  var SPACINGS = [0.5, 1, 1.5, 2];
+  var selects = [$('spacing'), $('spacing2')];
+  selects.forEach(function (sel) {
+    sel.innerHTML = SPACINGS.map(function (v) {
+      return '<option value="' + v + '">' + v.toFixed(1) + ' mi spacing · ' + (v * 4) + ' mi across</option>';
+    }).join('');
+  });
+  function setSpacing(v) { selects.forEach(function (sel) { sel.value = String(Number(v)); }); }
+  function currentSpacing() { return Number($('spacing').value); }
+  setSpacing(0.5);
+
+  function renderSpacingBadge() {
+    var rec = state.rec, cur = currentSpacing();
+    var html = '';
+    if (rec) {
+      var match = Math.abs(rec.spacingMi - cur) < 1e-9;
+      html = match
+        ? '<p class="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">' + esc(rec.badge) + '</p>' +
+          '<p class="text-[11px] text-slate-500 mt-1">' + esc(rec.reason) + (rec.note ? ' ' + esc(rec.note) : '') + '</p>'
+        : '<p class="text-[11px] text-slate-700 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1">Manual choice: ' + cur.toFixed(1) +
+          ' mi spacing. ' + esc(rec.badge) + '. <button type="button" class="underline font-semibold" data-use-rec>Use it</button></p>';
+    }
+    document.querySelectorAll('.spacing-badge').forEach(function (el) {
+      el.innerHTML = html;
+      el.classList.toggle('hidden', !html);
+      var b = el.querySelector('[data-use-rec]');
+      if (b) b.addEventListener('click', function () { changeSpacing(rec.spacingMi); });
+    });
+  }
+
+  var recTimer = null;
+  function requestRecommendation() {
+    clearTimeout(recTimer);
+    recTimer = setTimeout(function () {
+      var loc = $('location').value.trim();
+      if (loc.length < 3) return;
+      fetch('/api/recommend-spacing?location=' + encodeURIComponent(loc) + '&niche=' + encodeURIComponent($('niche').value))
+        .then(function (r) { return r.json(); })
+        .then(function (rec) {
+          if (!rec || rec.error) return;
+          state.rec = rec;
+          // Pre-select it until the operator picks a spacing themselves.
+          if (!state.spacingTouched && !state.scan) setSpacing(rec.spacingMi);
+          renderSpacingBadge();
+        }).catch(function () {});
+    }, 350);
+  }
+  $('location').addEventListener('input', requestRecommendation);
+
+  /**
+   * One path for every spacing change. Before a scan it only sets the value.
+   * After one, the maps and ranks were measured at the old spacing, so the
+   * report cannot just be relabelled: the grid is scanned again and, if a
+   * report exists, rebuilt, which carries the new distance into the
+   * headline, legend and perimeter line.
+   */
+  function changeSpacing(v) {
+    v = Number(v);
+    state.spacingTouched = true;
+    var before = state.scan ? state.scan.spacing.used : null;
+    setSpacing(v);
+    renderSpacingBadge();
+    if (!state.scan || v === before) return;
+    if (!state.scan.mock && !window.confirm('Re-scan at ' + v.toFixed(1) + ' mi spacing? This runs 25 new lookups against your ranking provider.')) {
+      setSpacing(before);
+      renderSpacingBadge();
+      return;
+    }
+    // Rivals typed by hand survive the rescan; auto-picked ones are re-picked
+    // at the new scale, where a different business may dominate.
+    var manual = state.chosen.map(function (c) { return c && !c.autoSelected ? c : null; });
+    runScan(Object.assign({}, state.scanBody, { spacingMi: v }), { manual: manual, thenGenerate: !!state.result });
+  }
+  selects.forEach(function (sel) {
+    sel.addEventListener('change', function () { changeSpacing(sel.value); });
+  });
+
   // Suggest the industry from the keyword, until the user picks one themselves.
-  $('niche').addEventListener('change', function () { state.nicheTouched = true; });
+  $('niche').addEventListener('change', function () { state.nicheTouched = true; requestRecommendation(); });
   $('keyword').addEventListener('input', function () {
     if (state.nicheTouched || !state.cfg) return;
     var kw = $('keyword').value, pick = null;
@@ -103,7 +183,8 @@
       var p = state.cfg.niches[k].pattern;
       if (!pick && p && new RegExp(p, 'i').test(kw)) pick = k;
     });
-    $('niche').value = pick || state.cfg.defaultNiche;
+    var next = pick || state.cfg.defaultNiche;
+    if ($('niche').value !== next) { $('niche').value = next; requestRecommendation(); }
   });
 
   /* --------------------------- step 1: scan --------------------------- */
@@ -115,39 +196,53 @@
 
   $('form1').addEventListener('submit', function (e) {
     e.preventDefault();
-    clearError();
-    var body = {
+    runScan({
       business: $('business').value,
       location: $('location').value,
       address: $('address').value || undefined,
       keyword: $('keyword').value,
-      spacingMi: Number($('spacing').value),
+      spacingMi: currentSpacing(),
       niche: $('niche').value,
       ownerName: $('ownerName').value || undefined,
       mock: $('mock').checked,
       coordinates: $('coordinates').value || undefined
-    };
-    $('btnScan').disabled = true;
-    $('btnScan').textContent = 'Scanning 25 points…';
-    busy(true, 'Scanning 25 points around the business…');
-    $('card2').classList.add('hidden');
-    $('card3').classList.add('hidden');
+    }, {});
+  });
 
-    post('/api/candidates', body)
-      .then(onScan)
+  function runScan(body, opts) {
+    clearError();
+    state.scanBody = body;
+    var rescan = !!state.scan;
+    selects.forEach(function (sel) { sel.disabled = true; });
+    $('btnScan').disabled = true;
+    $('btnGenerate').disabled = true;
+    $('btnScan').textContent = 'Scanning 25 points…';
+    busy(true, rescan ? 'Re-scanning 25 points at ' + Number(body.spacingMi).toFixed(1) + ' mi spacing…' : 'Scanning 25 points around the business…');
+    if (!rescan) { $('card2').classList.add('hidden'); $('card3').classList.add('hidden'); }
+
+    return post('/api/candidates', body)
+      .then(function (data) { return onScan(data, opts || {}); })   // waits for a follow-on report rebuild
       .catch(function (err) { showError(err.message); $('empty').classList.remove('hidden'); })
       .finally(function () {
         busy(false);
+        selects.forEach(function (sel) { sel.disabled = false; });
         $('btnScan').disabled = false;
+        $('btnGenerate').disabled = false;
         $('btnScan').textContent = 'Scan market & find competitors';
       });
-  });
+  }
 
-  function onScan(data) {
+  function onScan(data, opts) {
+    opts = opts || {};
     state.scan = data;
-    state.chosen = data.recommendations.map(function (r) {
-      return { name: r.name, placeId: r.placeId, cid: r.cid, archetype: r.archetypeKey, autoSelected: true };
+    state.result = opts.thenGenerate ? state.result : null;
+    state.chosen = data.recommendations.map(function (r, i) {
+      var kept = opts.manual && opts.manual[i];
+      return kept || { name: r.name, placeId: r.placeId, cid: r.cid, archetype: r.archetypeKey, autoSelected: true };
     });
+    state.rec = data.spacing.recommended;
+    setSpacing(data.spacing.used);
+    renderSpacingBadge();
     $('sum1').textContent = data.business.name + ' · "' + data.keyword + '"';
     $('body1').classList.add('hidden');
     $('chev1').textContent = '▸';
@@ -157,6 +252,7 @@
     $('canSpamWarn').classList.toggle('hidden', !warn.length);
     $('card2').classList.remove('hidden');
     $('card3').classList.remove('hidden');
+    if (opts.thenGenerate) return generate();
     $('empty').classList.remove('hidden');
     setStep(2);
   }
@@ -235,12 +331,14 @@
   });
 
   /* ------------------------ step 3: generate ------------------------ */
-  $('btnGenerate').addEventListener('click', function () {
+  $('btnGenerate').addEventListener('click', function () { generate(); });
+
+  function generate() {
     clearError();
     setStep(3);
     $('btnGenerate').disabled = true;
     busy(true, 'Reading review signals and drawing the maps…');
-    post('/api/generate', {
+    return post('/api/generate', {
       scanId: state.scan.scanId,
       competitors: state.chosen.filter(Boolean),
       niche: $('niche').value,
@@ -251,7 +349,7 @@
       setStep(4);
     }).catch(function (err) { showError(err.message); $('empty').classList.remove('hidden'); })
       .finally(function () { busy(false); $('btnGenerate').disabled = false; });
-  });
+  }
 
   /* --------------------- step 4: the deliverable --------------------- */
   var ROLE_TAG = ['Your Business', 'Competitor A: Market Dominator', 'Competitor B: Nearby Peer'];
@@ -283,7 +381,7 @@
       return '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:' + color + '"></span>' + label + '</span>';
     };
     $('xLegend').innerHTML =
-      dot('#22c55e', '1–3 Visible (Green)') + dot('#f59e0b', '4–10 Weak (Amber)') + dot('#ef4444', '11+ Invisible (Red)') +
+      dot('#22c55e', '1–3 Visible') + dot('#f59e0b', '4–10 Weak') + dot('#ef4444', '11+ Invisible') +
       '<span class="text-slate-300">|</span>' +
       '<span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-full border-2 border-slate-900"></span>Circled pin = Your Address</span>' +
       '<span class="text-slate-300">|</span><span>' + esc(rep.spacingMi) + ' mi grid spacing</span>';

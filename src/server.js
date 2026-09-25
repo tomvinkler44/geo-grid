@@ -12,6 +12,8 @@ import { resolvedOffer, resolvedSender } from './offer.js';
 import { publicNiches, detectNiche, getNiche, DEFAULT_NICHE } from './niches.js';
 import { buildOutreachEmail } from './executive.js';
 import { loadAuditSummary, SLUG_RE } from './auditstore.js';
+import { recommendSpacing, classifyMarket } from './spacing.js';
+import { placePopulation, geocode } from './providers/geocode.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 await loadSettings();
@@ -100,6 +102,36 @@ app.get('/api/map-test', async (_req, res) => {
 });
 
 /**
+ * Recommended grid spacing for a market, from the city and industry. Called
+ * by the composer as those are typed, before any scan: spacing has to be
+ * settled first, because the competitors are found from the scan itself.
+ */
+async function spacingFor(location, niche) {
+  let loc = String(location || '').trim();
+  let city = '';
+  // A bare zip carries no city name, so ask the (cached) geocoder for one.
+  if (/^\d{5}(-\d{4})?$/.test(loc)) {
+    try {
+      const g = await geocode(loc);
+      if (g.city) { city = g.city; loc = g.state ? `${g.city}, ${g.state}` : g.city; }
+    } catch { /* fall through to the default */ }
+  }
+  // Population only matters for spotting rural towns, and only for places
+  // not already on the curated lists, so skip the lookup when it cannot help.
+  const known = classifyMarket(loc).basis === 'known';
+  const population = known ? null : await placePopulation(loc);
+  return recommendSpacing({ location: loc, niche, population, city: city || undefined });
+}
+
+app.get('/api/recommend-spacing', async (req, res) => {
+  try {
+    res.json(await spacingFor(req.query.location, req.query.niche));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+/**
  * Step 2 - scan the grid once and recommend two rivals.
  * The scan is stored so approving them in step 3 does not pay for a second one.
  */
@@ -150,6 +182,9 @@ app.post('/api/candidates', async (req, res) => {
       recommendations: [toCard(dominator, 'dominator'), toCard(peer, 'peer')].filter(Boolean),
       niche: getNiche(niche).key,
       suggestedNiche: detectNiche(scan.keyword),
+      // Shown beside the rivals, so the operator sees the scale they were
+      // found at and why, and can rescan at another spacing.
+      spacing: { used: scan.spacingMi, recommended: await spacingFor(scan.location, niche) },
       // The first-touch email only needs the scan, so it is ready before any
       // report is generated: ask permission first, send the audit second.
       outreachEmail: buildOutreachEmail({

@@ -182,16 +182,17 @@ test('metric-card subtext only claims a problem when the prospect is behind', ()
   assert.equal(behind.reviews.benchmark, '100 leader');
 });
 
-test('headline: [Business] captures X% of local searches across a 2-mile area. [Competitor A] captures Y%.', async () => {
+test('headline distance follows the grid spacing', async () => {
   const report = await mockReport();
-  const h = buildHeadline(report);
   const [lead, a] = report.businesses;
   const x = Math.round(lead.metrics.top3Share * 100);
   const y = Math.round(a.metrics.top3Share * 100);
-  assert.equal(h.text, `${lead.name} captures ${x}% of local searches across a 2-mile area. ${a.name} captures ${y}%.`);
-  // The area is the grid's width, which grows with the spacing chosen.
-  assert.match(buildHeadline({ ...report, spacingMi: 1 }).text, /across a 4-mile area/);
-  assert.match(buildHeadline({ ...report, spacingMi: 2 }).text, /across a 8-mile area/);
+  const h = buildHeadline(report); // 0.5 mi spacing
+  assert.equal(h.text, `${lead.name} captures ${x}% of local searches within 1 mile of your location. ${a.name} captures ${y}%.`);
+  assert.equal(buildHeadline({ ...report, spacingMi: 1 }).text,
+    `${lead.name} captures ${x}% of local searches across a 4-mile territory in Sunnyvale. ${a.name} captures ${y}%.`);
+  assert.match(buildHeadline({ ...report, spacingMi: 1.5 }).text, /across a 6-mile territory in Sunnyvale\./);
+  assert.match(buildHeadline({ ...report, spacingMi: 2 }).text, /across an 8-mile territory in Sunnyvale\./);
   assert.match(h.context, /^Search Term: “assisted living sunnyvale” · Area Tested: 25 Neighborhood Coordinates · Date: \w+ \d{1,2}, \d{4}$/);
 });
 
