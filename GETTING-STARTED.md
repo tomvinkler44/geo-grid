@@ -118,7 +118,7 @@ A one-page audit appears on the right:
 - Three cards explaining why searchers pick the rivals.
 - A headline saying what share of local searches they win, next to the market leader.
 - Two short columns: how they rank today, and what moves the pins.
-- A light box at the bottom with your offer and a green button that opens the prospect's personal checkout page.
+- A grey box at the bottom with your price, a green button that opens the prospect's personal checkout page, what they get each month, and the guarantee.
 - Your offer and price at the bottom.
 
 Bottom right of the screen there are two buttons. **Export / Print PDF** opens

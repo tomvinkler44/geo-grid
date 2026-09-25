@@ -169,7 +169,10 @@ export function buildHeadline(report) {
   const lead = businesses[0];
   const a = businesses[1] || null;
   const city = cityOf(location, report.business) || 'your area';
-  const first = `${lead.name} captures ${pct(lead.metrics.top3Share)} of local searches in ${city}.`;
+  // The grid is (spacing x 4) miles *across*: 2 mi at the default spacing,
+  // i.e. a 1-mile radius. Saying "radius" here would double the claim.
+  const area = `${Number((report.spacingMi * 4).toFixed(1))}-mile area`;
+  const first = `${lead.name} captures ${pct(lead.metrics.top3Share)} of local searches across a ${area}.`;
   const date = new Date(generatedAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   return {
     text: a ? `${first} ${a.name} captures ${pct(a.metrics.top3Share)}.` : first,
@@ -178,6 +181,7 @@ export function buildHeadline(report) {
     context: `Search Term: “${keyword}” · Area Tested: ${points.length} Neighborhood Coordinates · Date: ${date}`,
     leader: a,
     city,
+    area,
   };
 }
 
@@ -186,17 +190,9 @@ export function legendText(spacingMi) {
   return `● ${BAND_LABELS.visible} (Green)  ● ${BAND_LABELS.weak} (Amber)  ● ${BAND_LABELS.invisible} (Red)  |  Circled pin = Your Address  |  ${spacingMi} mi grid spacing`;
 }
 
-/**
- * Service words to name in the action plan: the searched terms (without the
- * city) plus the first two of the niche's high-ticket jobs.
- */
-export function serviceTokens(keyword, location, niche) {
-  const place = new Set(normalizeName(location).split(' ').filter(Boolean));
-  const fromKeyword = String(keyword || '').toLowerCase().split(/\s+/)
-    .filter((w) => w && !place.has(normalizeName(w)) && !/^(near|me|in|the|and|for|best|top)$/.test(w));
-  const phrase = fromKeyword.join(' ').trim();
-  const jobs = String(niche.highTicket || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 2);
-  return [...new Set([phrase, ...jobs].filter(Boolean))].slice(0, 3);
+/** Real services for the vertical, named in the action plan's replies line. */
+export function serviceTokens(_keyword, _location, niche) {
+  return (niche.services || []).slice(0, 3);
 }
 
 /**

@@ -105,15 +105,28 @@ test('the narrative is two columns of three: diagnosis and action plan', async (
   for (const x of [...diagnosis, ...plan]) assert.ok(x.title && x.text.length > 40, x.key);
   assert.match(plan[2].text, /100% of real customers/);
   assert.match(plan[2].text, /family tour or intake consultation/, 'assisted living vocabulary');
-  assert.match(plan[1].text, /“assisted living”/, 'names the searched service');
+  assert.match(plan[1].text, /“assisted living suites”, “memory care”, “respite care”/, 'names the vertical\'s real services');
 });
 
 test('tree services and contractors get job-completion wording', async () => {
   const report = await mockReport();
   const { plan } = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER, niche: 'tree-services' });
-  assert.match(plan[2].text, /completed tree removal job/);
+  assert.match(plan[2].text, /after each completed job,/);
+  assert.match(plan[1].text, /“tree removal”, “stump grinding”, “emergency storm work”/);
+  const plumbing = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER, niche: 'plumbing' });
+  assert.match(plumbing.plan[2].text, /after each completed service call,/);
+  assert.match(plumbing.plan[1].text, /“water heater repair”, “drain clearing”, “leak detection”/);
   const generic = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER, niche: 'generic' });
-  assert.match(generic.plan[2].text, /completed customer service/);
+  assert.match(generic.plan[2].text, /after each completed service call,/);
+});
+
+test('no internal shorthand leaks into the report copy', async () => {
+  const report = await mockReport();
+  for (const niche of ['tree-services', 'assisted-living', 'plumbing', 'generic']) {
+    const { diagnosis, plan } = buildNarrative({ report, signals: measuredSignals(report), offer: OFFER, niche });
+    const text = [...diagnosis, ...plan].map((x) => x.text).join(' ');
+    assert.ok(!/high-margin projects|emergency calls|completed customer service/.test(text), `${niche}: ${text}`);
+  }
 });
 
 test('proximity never claims a strong doorstep rank the map contradicts', async () => {
@@ -169,13 +182,16 @@ test('metric-card subtext only claims a problem when the prospect is behind', ()
   assert.equal(behind.reviews.benchmark, '100 leader');
 });
 
-test('headline: [Business] captures X% of local searches in [City]. [Competitor A] captures Y%.', async () => {
+test('headline: [Business] captures X% of local searches across a 2-mile area. [Competitor A] captures Y%.', async () => {
   const report = await mockReport();
   const h = buildHeadline(report);
   const [lead, a] = report.businesses;
   const x = Math.round(lead.metrics.top3Share * 100);
   const y = Math.round(a.metrics.top3Share * 100);
-  assert.equal(h.text, `${lead.name} captures ${x}% of local searches in Sunnyvale. ${a.name} captures ${y}%.`);
+  assert.equal(h.text, `${lead.name} captures ${x}% of local searches across a 2-mile area. ${a.name} captures ${y}%.`);
+  // The area is the grid's width, which grows with the spacing chosen.
+  assert.match(buildHeadline({ ...report, spacingMi: 1 }).text, /across a 4-mile area/);
+  assert.match(buildHeadline({ ...report, spacingMi: 2 }).text, /across a 8-mile area/);
   assert.match(h.context, /^Search Term: “assisted living sunnyvale” · Area Tested: 25 Neighborhood Coordinates · Date: \w+ \d{1,2}, \d{4}$/);
 });
 

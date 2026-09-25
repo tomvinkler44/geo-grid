@@ -275,7 +275,7 @@
         '<img src="' + d.panelUrls[i] + '" alt="Ranking grid for ' + esc(p.name) + '" class="w-full block" />' +
         '<div class="print-small px-2.5 py-1 text-[11px] flex items-center justify-between border-t">' +
           '<span class="text-slate-600"><b class="text-slate-900">' + m.top3Count + '</b>/' + rep.points.length + ' in top 3</span>' +
-          '<span class="font-bold ' + (you ? 'text-red-600' : 'text-slate-900') + '">' + Math.round(m.top3Share * 100) + '%</span>' +
+          '<span class="font-extrabold text-slate-900">' + Math.round(m.top3Share * 100) + '%</span>' +
         '</div></figure>';
     }).join('');
 
@@ -290,11 +290,11 @@
 
     var sig = ex.signals;
     $('xSignals').innerHTML = [sig.reviews, sig.velocity, sig.reply].map(function (c) {
-      return '<div class="print-card rounded-lg border border-slate-200 bg-white px-3 py-2">' +
-        '<p class="print-eyebrow text-[10px] font-bold uppercase tracking-wide text-slate-500">' + esc(c.label) + '</p>' +
-        '<p class="print-card-value text-lg font-extrabold leading-tight mt-0.5 ' + (c.measured ? 'text-slate-900' : 'text-slate-400') + '">' + esc(c.prospect) +
-          '<span class="font-semibold text-slate-400"> vs </span><span class="text-slate-700">' + esc(c.benchmark) + '</span></p>' +
-        '<p class="print-small text-[11px] text-slate-500 mt-0.5">' + esc(c.verdict) + '</p>' +
+      return '<div class="print-card rounded-lg bg-slate-900 px-3 py-2">' +
+        '<p class="print-eyebrow text-[10px] font-bold uppercase tracking-wide text-slate-400">' + esc(c.label) + '</p>' +
+        '<p class="print-card-value text-lg font-extrabold leading-tight mt-0.5 ' + (c.measured ? 'text-white' : 'text-slate-500') + '">' + esc(c.prospect) +
+          '<span class="font-semibold text-slate-500"> vs </span><span class="text-slate-300">' + esc(c.benchmark) + '</span></p>' +
+        '<p class="print-small text-[11px] text-slate-300 mt-0.5">' + esc(c.verdict) + '</p>' +
       '</div>';
     }).join('');
 
@@ -310,13 +310,22 @@
     var offer = ex.offer;
     $('xOfferName').textContent = offer.name;
     $('xMicro').textContent = offer.microcopy;
-    $('xGuarantee').textContent = offer.guarantee;
+    var g = String(offer.guarantee), cut = g.indexOf(':');
+    $('xGuarantee').innerHTML = cut > 0
+      ? '<b class="text-slate-900">' + esc(g.slice(0, cut + 1)) + '</b> ' + esc(g.slice(cut + 1).trim())
+      : esc(g);
+    $('xDeliverHead').textContent = offer.deliverablesHeading || '';
+    $('xDeliverables').innerHTML = (offer.deliverables || []).map(function (x) {
+      return '<li class="print-deliv flex gap-1.5 text-[12px] leading-snug text-slate-700">' +
+        '<span class="text-emerald-700 font-bold" aria-hidden="true">✓</span>' +
+        '<span><b class="text-slate-900">' + esc(x.title) + ':</b> ' + esc(x.text) + '</span></li>';
+    }).join('');
     $('xCta').textContent = offer.cta + ' →';
     $('xCta').href = ex.links.activate;
     $('xShort').textContent = ex.links.short;
 
     var s = ex.sender;
-    $('xSender').textContent = [s.company, s.name, s.postalAddress || s.cityState, s.email, s.phone].filter(Boolean).join(' · ');
+    $('xSender').textContent = [s.company, s.name, s.cityState, s.phone].filter(Boolean).join(' · ');
 
     // "Save as PDF" uses the page title as the file name.
     document.title = rep.business.name + ' — Local Visibility Audit';

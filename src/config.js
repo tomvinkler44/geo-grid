@@ -33,6 +33,12 @@ export const config = {
     guarantee: env('OFFER_GUARANTEE',
       '60-Day Momentum Guarantee: More reviews and more green pins on your Day 60 audit, or month two is refunded in full.'),
     goalPins: Number(env('OFFER_GOAL_PINS', '15')),
+    deliverablesHeading: 'Everything Handled For You Each Month:',
+    deliverables: [
+      { title: 'Automated review engine', text: 'Polite post-service text requests, automated email reminders, and prompt, professional replies to every review.' },
+      { title: 'Ongoing profile optimization', text: 'Continuous listing calibration and algorithm updates to signal activity to Google and steadily turn outer red pins into green territory.' },
+      { title: 'Monthly territory tracking', text: 'Fresh visual reports delivered every 30 days verifying your expanding visibility across town.' },
+    ],
   },
   /** Who the audit and emails come from. */
   sender: {

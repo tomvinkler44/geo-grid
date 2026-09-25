@@ -59,11 +59,16 @@ test('niches: tree services is the default and unknown keys fall back to it', ()
   assert.equal(getNiche('nonsense').key, 'tree-services');
   assert.equal(getNiche('assisted-living').transactionEvent, 'family tour or intake consultation');
   assert.equal(getNiche('tree-services').highTicket, 'crane takedowns, power lines, emergency removals');
+  assert.equal(getNiche('tree-services').transactionEvent, 'completed job');
+  assert.equal(getNiche('plumbing').transactionEvent, 'completed service call');
+  assert.equal(detectNiche('water heater repair san jose'), 'plumbing');
   assert.equal(detectNiche('assisted living sunnyvale'), 'assisted-living');
   assert.equal(detectNiche('tree removal dallas'), 'tree-services');
-  assert.equal(detectNiche('plumber near me'), null);
+  assert.equal(detectNiche('plumber near me'), 'plumbing');
+  assert.equal(detectNiche('roofing contractor'), null);
   for (const n of Object.values(NICHES)) {
     for (const f of ['highTicket', 'transactionEvent', 'software', 'marketNoun']) assert.ok(n[f], `${n.key}.${f}`);
+    assert.equal(n.services.length, 3, `${n.key} needs three named services`);
   }
 });
 
@@ -100,4 +105,10 @@ test('print CSS: one US Letter sheet, no room for browser headers, clipped to on
   assert.match(html, /padding: 0\.35in 0\.4in !important/);
   assert.match(html, /height: 11in !important/);
   assert.match(html, /overflow: hidden !important/);
+});
+
+test('the offer box lists the three monthly deliverables', () => {
+  const o = resolvedOffer();
+  assert.equal(o.deliverablesHeading, 'Everything Handled For You Each Month:');
+  assert.deepEqual(o.deliverables.map((d) => d.title), ['Automated review engine', 'Ongoing profile optimization', 'Monthly territory tracking']);
 });

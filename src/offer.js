@@ -16,6 +16,8 @@ export function resolvedOffer(o = config.offer) {
     checkoutMicrocopy: fill(o.checkoutMicrocopy, o.price),
     guarantee: fill(o.guarantee, o.price),
     goalPins: Number.isFinite(o.goalPins) && o.goalPins > 0 ? o.goalPins : 15,
+    deliverablesHeading: o.deliverablesHeading,
+    deliverables: (o.deliverables || []).map((d) => ({ title: fill(d.title, o.price), text: fill(d.text, o.price) })),
   };
 }
 
