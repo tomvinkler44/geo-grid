@@ -199,6 +199,15 @@
           <span class="w-7 h-7 rounded-full bg-slate-900 text-white grid place-items-center text-xs font-bold">3</span>
           <span class="font-semibold">Generate the audit</span>
         </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="offerVariant">Offer on this audit</label>
+          <select id="offerVariant" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="">Follow the A/B test setting</option>
+            <option value="a">Version A: first 30 days free</option>
+            <option value="b">Version B: we work free until you get results</option>
+          </select>
+          <p id="offerTestNote" class="text-xs text-slate-500 mt-1"></p>
+        </div>
         <button id="btnGenerate"
                 class="w-full rounded-xl bg-emerald-600 text-white font-semibold py-3 hover:bg-emerald-700 disabled:opacity-60">
           Approve Rivals &amp; Generate Executive Audit
@@ -275,7 +284,7 @@
             <ul id="xDeliverables" class="print-gap mt-1.5 grid grid-cols-3 gap-4"></ul>
           </div>
           <div class="print-offer-row mt-3 border-t border-slate-300 pt-2.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-            <p id="xGuarantee" class="print-small text-xs text-slate-800"></p>
+            <p id="xGuarantee" class="print-small text-xs text-slate-800 flex-1 min-w-0"></p>
             <p id="xSender" class="print-small text-[11px] font-medium text-slate-600 whitespace-nowrap"></p>
           </div>
         </section>
@@ -285,6 +294,7 @@
 
   <!-- ===================== Floating utility bar ===================== -->
   <div id="utility" class="no-print hidden fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-white/95 backdrop-blur border shadow-lg rounded-2xl px-3 py-2">
+    <span id="variantBadge" class="text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg px-2.5 py-1.5"></span>
     <button id="btnPrint" class="rounded-xl bg-slate-900 text-white text-sm font-semibold px-4 py-2 hover:bg-slate-800">Export / Print PDF</button>
     <button id="btnCopy" class="rounded-xl border border-slate-300 text-sm font-semibold px-4 py-2 hover:bg-slate-50">Copy Report Email</button>
     <button id="btnOutreach2" class="rounded-xl border border-slate-300 text-sm font-semibold px-4 py-2 hover:bg-slate-50">Copy Outreach Email</button>

@@ -401,8 +401,77 @@
   footer nav { display: flex; flex-wrap: wrap; gap: 8px 24px; }
   footer nav a { text-decoration: none; font-weight: 500; }
   footer nav a:hover { color: var(--ink); }
-</style>
 
+  /* Cards on a white band need an edge; on the blue tint the fill does it. */
+  .band:not(.band-tint) .step, .band:not(.band-tint) .problem { border: 1px solid var(--line); }
+  .feature { background: var(--white); }
+
+  /* ---------- "7 in 10" band ---------- */
+  .stat-band { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 48px; align-items: center; max-width: 980px; margin-inline: auto; }
+  .stat-big { color: var(--blue); font-size: 112px; line-height: 1; font-weight: 700; letter-spacing: -5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stat-big small { display: block; margin-top: 10px; font-size: 15px; letter-spacing: 0; font-weight: 600; color: var(--muted); }
+  .stat-copy { display: flex; flex-direction: column; gap: 14px; }
+  .stat-copy h2 { font-size: 36px; line-height: 1.25; letter-spacing: -1.4px; }
+  .stat-copy p { font-size: 18px; color: var(--body); max-width: 56ch; }
+  .stat-copy .we-do { color: var(--ink); font-weight: 600; }
+  .source { font-size: 13px !important; color: var(--muted) !important; }
+  @media (max-width: 760px) {
+    .stat-band { grid-template-columns: 1fr; gap: 20px; }
+    .stat-big { font-size: 80px; letter-spacing: -3px; }
+    .stat-copy h2 { font-size: 28px; letter-spacing: -.8px; }
+    .stat-copy p { font-size: 16px; }
+  }
+
+  /* ---------- Free map form ---------- */
+  .free-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+  .form-card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lift);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .field label span { font-weight: 400; color: var(--muted); }
+  .field input {
+    font: 400 16px/1.4 var(--sans);
+    color: var(--ink);
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: var(--shadow-btn);
+    width: 100%;
+  }
+  .field input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-card .btn { width: 100%; }
+  .form-note { font-size: 13px; color: var(--muted); text-align: center; }
+  .form-done {
+    border-radius: 12px;
+    background: var(--blue-tint);
+    border: 1px solid var(--blue-line);
+    padding: 16px;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .promise-list { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  .promise-list li { display: grid; grid-template-columns: 20px 1fr; gap: 12px; color: var(--body); }
+  .promise-list svg { margin-top: 3px; color: var(--blue); }
+  .promise-list b { color: var(--ink); font-weight: 600; }
+  @media (max-width: 860px) { .free-map { grid-template-columns: 1fr; gap: 32px; } }
+  @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } .form-card { padding: 20px; } }
+
+  /* ---------- Risk-free box ---------- */
+  .risk-free { background: var(--white); border: 1px solid var(--blue-line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .risk-free h3 { font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .risk-free h3 svg { color: var(--blue); flex: none; }
+  .risk-free p { font-size: 15px; color: var(--body); }
+</style>
 <header class="site-header">
   <div class="wrap">
     <a class="brand" href="#top" aria-label="PromoFlix home">
@@ -412,7 +481,7 @@
       <a class="hide-sm" href="#how">How it works</a>
       <a class="hide-sm" href="#pricing">Pricing</a>
       <a class="hide-sm" href="#faq">FAQ</a>
-      <a class="btn btn-primary" href="#pricing">Get started</a>
+      <a class="btn btn-primary" href="#free-map">Get your free map</a>
     </nav>
   </div>
 </header>
@@ -422,23 +491,23 @@
   <section class="hero">
     <div class="wrap">
       <div class="hero-copy">
-        <p class="eyebrow">Google Maps visibility for local service businesses</p>
+        <p class="eyebrow">For home service &amp; senior care businesses</p>
         <h1>Get found on Google Maps in more of the neighborhoods you serve.</h1>
-        <p class="sub">Most local businesses show up near their own address and fade out a mile or two away. We keep fresh reviews coming in and your Google profile active, so more nearby customers see you when they search.</p>
+        <p class="sub">We turn the customers you already have into a steady stream of Google reviews, so more people across town find you first. No contract, no software to learn, and no reports full of numbers you can’t use.</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="#pricing">Start for $297/mo
+          <a class="btn btn-primary" href="#free-map">Get your free neighborhood map
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
           <a class="btn btn-secondary" href="#how">See how it works</a>
         </div>
         <div class="fine">
-          <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Month-to-month</span>
-          <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>No setup fee</span>
-          <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>60-day guarantee</span>
+          <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>No contract</span>
+          <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>You own everything</span>
+          <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Risk-free start</span>
         </div>
       </div>
 
-      <figure class="map-card" style="margin:0" aria-label="Example visibility maps before and after 60 days">
+      <figure class="map-card" style="margin:0" aria-label="Example neighborhood maps on Day 1 and Day 90">
         <div class="map-card-head">
           <h3>Where a business shows up in the top 3</h3>
           <span class="tag">Illustrative example</span>
@@ -455,7 +524,7 @@
             </div>
           </div>
           <div class="map">
-            <div class="map-label"><b>Day 60</b><span>8 of 25</span></div>
+            <div class="map-label"><b>Day 90</b><span>8 of 25</span></div>
             <div class="grid5" aria-hidden="true">
               <i class="pin r">17</i><i class="pin a">10</i><i class="pin a">8</i><i class="pin a">9</i><i class="pin r">20+</i>
               <i class="pin a">9</i><i class="pin g">3</i><i class="pin g">2</i><i class="pin a">5</i><i class="pin a">10</i>
@@ -466,11 +535,11 @@
           </div>
         </div>
         <div class="legend">
-          <span><i style="background:var(--pin-green)"></i>Top 3: gets the calls</span>
-          <span><i style="background:var(--pin-amber)"></i>4–10: easy to miss</span>
-          <span><i style="background:var(--pin-red)"></i>11+: not seen</span>
+          <span><i style="background:var(--pin-green)"></i>Top 3: customers see you</span>
+          <span><i style="background:var(--pin-amber)"></i>4–10: below the first three</span>
+          <span><i style="background:var(--pin-red)"></i>11+: not showing</span>
         </div>
-        <figcaption class="map-note">Each pin is a spot in your service area where we search Google Maps for your main service, the same way a customer would. The outlined pin is your location.</figcaption>
+        <figcaption class="map-note">Each pin is a neighborhood in your service area where we search Google Maps for your main service, the way a customer would. The outlined pin is your location.</figcaption>
       </figure>
     </div>
   </section>
@@ -489,45 +558,60 @@
     </div>
   </section>
 
-  <!-- The problem -->
+  <!-- Burned before -->
   <section class="band band-tint">
     <div class="wrap">
       <div class="section-head center">
-        <p class="eyebrow">Why some neighborhoods stay quiet</p>
-        <h2>Customers nearby can’t call you if they can’t find you</h2>
-        <p class="lede">Google ranks local businesses by distance, relevance and prominence. Reviews are a big part of prominence, and they’re the part you can actually grow.</p>
+        <p class="eyebrow">Been burned before?</p>
+        <h2>You’re not the only one</h2>
+        <p class="lede">Most owners we talk to have paid a marketing company for months and gotten reports full of numbers that never turned into jobs. Here’s how we work instead.</p>
       </div>
       <div class="problems">
         <article class="problem">
-          <h3>Great work, not many reviews</h3>
-          <p>Happy customers mean to leave a review, then forget. Unless someone asks at the right moment, most never do.</p>
+          <h3>No contract, ever</h3>
+          <p>Month-to-month. If it isn’t working for you, you leave. No fees and no fine print.</p>
         </article>
         <article class="problem">
-          <h3>No time to keep up with it</h3>
-          <p>You’re on job sites all day. Asking for reviews, following up and replying ends up at the bottom of the list.</p>
+          <h3>A map, not a pile of numbers</h3>
+          <p>One page that shows where you show up and where you don’t, neighborhood by neighborhood. You can check any spot yourself on your phone.</p>
         </article>
         <article class="problem">
-          <h3>No clear way to see progress</h3>
-          <p>Most marketing reports are hard to read. You still can’t tell whether people across town can find you.</p>
+          <h3>You own everything</h3>
+          <p>You stay the owner of your Google profile. We’re a manager you can remove in one click, and every review stays yours if you leave.</p>
         </article>
       </div>
-      <p class="band-foot">You already do the work that earns reviews. We make sure they get collected.</p>
+    </div>
+  </section>
+
+  <!-- 7 in 10 -->
+  <section class="band">
+    <div class="wrap">
+      <div class="stat-band">
+        <p class="stat-big">7 in 10<small>customers leave a review when they’re asked</small></p>
+        <div class="stat-copy">
+          <p class="eyebrow">Why reviews aren’t coming in</p>
+          <h2>Most of them are never asked.</h2>
+          <p>That isn’t your fault. Asking every customer at the right moment, after every single job, takes a system, and most businesses don’t have one.</p>
+          <p class="we-do">We do. And reviews are a big part of what Google weighs when it decides who shows up in each neighborhood.</p>
+          <p class="source">Source: BrightLocal consumer survey, reported by Search Engine Land.</p>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- What we do -->
-  <section class="band" id="what">
+  <section class="band band-tint" id="what">
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">Done for you, every month</p>
         <h2>We handle it. You keep doing the work.</h2>
-        <p class="lede">No software to learn and nothing to log into. After setup, the only thing you’ll notice is more reviews and a monthly map.</p>
+        <p class="lede">No software to learn and nothing to log into. After setup, what you’ll notice is more reviews and a monthly map.</p>
       </div>
       <div class="features">
         <article class="feature">
           <span class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H8l-4 4V5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10h8M8 13h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
           <h3>A review request after every job</h3>
-          <p>A short, friendly text goes out after each completed job, with an email reminder if needed. Every customer gets the same request, which keeps it within Google’s rules.</p>
+          <p>A short, friendly text goes out within hours of each job, with an email reminder if needed. Every customer gets the same request, which keeps it within Google’s rules.</p>
         </article>
         <article class="feature">
           <span class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.4 6.8 19.2l1-5.9L3.5 9.2l5.9-.8L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
@@ -541,8 +625,8 @@
         </article>
         <article class="feature">
           <span class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="9" r="1.3" fill="currentColor"/><circle cx="15" cy="9" r="1.3" fill="currentColor"/><circle cx="9" cy="15" r="1.3" fill="currentColor"/><circle cx="15" cy="15" r="1.3" fill="currentColor"/></svg></span>
-          <h3>A visibility map every 30 days</h3>
-          <p>The same 25-point map of your service area, rechecked each month. You see exactly which neighborhoods improved, in plain colors instead of jargon.</p>
+          <h3>A neighborhood map every 30 days</h3>
+          <p>The same 25-point map of your service area, rechecked each month. You see exactly which neighborhoods improved, in plain colors.</p>
         </article>
       </div>
       <div class="stack-note">
@@ -553,7 +637,7 @@
   </section>
 
   <!-- How it works -->
-  <section class="band band-tint" id="how">
+  <section class="band" id="how">
     <div class="wrap">
       <div class="section-head center">
         <p class="eyebrow">How it works</p>
@@ -568,29 +652,29 @@
         <article class="step">
           <span class="when">Day 1–2</span>
           <h3>We set everything up</h3>
-          <p>Review requests, reply handling and profile updates are ready, usually within one business day.</p>
+          <p>Review requests, reply handling and profile updates are switched on, usually within one business day.</p>
         </article>
         <article class="step">
           <span class="when">Day 30</span>
           <h3>Your first progress map</h3>
-          <p>We rerun your map and send it to you with a short note on what changed and what’s next.</p>
+          <p>We rerun your map and send it with a short note on what changed and what’s next.</p>
         </article>
         <article class="step">
-          <span class="when">Day 60</span>
-          <h3>Guarantee check</h3>
-          <p>We compare your Day 60 map and review count to where you started. If they haven’t improved, month two is on us.</p>
+          <span class="when">Day 90</span>
+          <h3>Day 90 next to Day 1</h3>
+          <p>We put your Day 90 map beside your starting map, so you can see for yourself which neighborhoods you’ve gained.</p>
         </article>
       </div>
     </div>
   </section>
 
   <!-- Pricing -->
-  <section class="band" id="pricing">
+  <section class="band band-tint" id="pricing">
     <div class="wrap">
       <div class="section-head center">
         <p class="eyebrow">Pricing</p>
         <h2>One flat price. Everything included.</h2>
-        <p class="lede">No contracts, no setup fees, no add-ons.</p>
+        <p class="lede">No contract, no setup fee, no add-ons.</p>
       </div>
 
       <div class="pricing-card">
@@ -605,31 +689,63 @@
           </div>
           <ul class="checks">
             <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Review requests by text and email after every job</li>
-            <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Professional replies to every review</li>
+            <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>A professional reply to every review</li>
             <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Ongoing Google profile updates</li>
-            <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>A 25-point visibility map every 30 days</li>
+            <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>A 25-point neighborhood map every 30 days</li>
             <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Setup included, usually done in one business day</li>
           </ul>
         </div>
 
         <div class="pricing-side">
-          <div class="guarantee">
-            <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>60-Day Momentum Guarantee</h3>
-            <p>If your Day 60 map doesn’t show more reviews and more green pins than your Day 1 map, we refund your second month in full.</p>
+          <div class="risk-free">
+            <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>A risk-free start</h3>
+            <p>Every new client starts with a written guarantee that puts the risk on us, not you. Your exact terms come with your free neighborhood map, in plain English.</p>
           </div>
-          <!-- Replace href with the Stripe Payment Link before publishing. -->
-          <a class="btn btn-primary" href="#pricing">Start for $297/mo
+          <a class="btn btn-primary" href="#free-map">Get your free map
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </a>
-          <p class="under-cta">Setup takes about 15 minutes of your time.</p>
-          <p class="candid"><b>What we won’t promise:</b> a specific ranking. Your position also depends on where each customer is searching from and what your competitors do. What we do promise is steady work every month and a map that shows you the results.</p>
+          <p class="under-cta">Already have your map? Use the button in your report to start.</p>
+          <p class="candid"><b>What we won’t promise:</b> a #1 ranking. Nobody honestly can, and Google warns owners about anyone who does. What we do promise is steady work every month and a map that shows you the results.</p>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Free map -->
+  <section class="band" id="free-map">
+    <div class="wrap free-map">
+      <div>
+        <div class="section-head">
+          <p class="eyebrow">Free, no call needed</p>
+          <h2>See where you show up, neighborhood by neighborhood</h2>
+          <p class="lede">Tell us who you are and we’ll send your one-page map, usually within one business day.</p>
+        </div>
+        <ul class="promise-list">
+          <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Who shows up instead of you</b> in each part of your service area</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>How your reviews compare</b> with the businesses beating you</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Your exact guarantee</b> if you decide to start. No pressure if you don’t.</span></li>
+        </ul>
+      </div>
+
+      <form class="form-card" id="mapForm" novalidate>
+        <div class="form-row">
+          <div class="field"><label for="fName">Your name</label><input id="fName" name="name" autocomplete="name" required></div>
+          <div class="field"><label for="fBiz">Business name</label><input id="fBiz" name="business" autocomplete="organization" required></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label for="fCity">City</label><input id="fCity" name="city" autocomplete="address-level2" required></div>
+          <div class="field"><label for="fService">Main service <span>(optional)</span></label><input id="fService" name="service" placeholder="e.g. tree removal"></div>
+        </div>
+        <div class="field"><label for="fContact">Email or phone</label><input id="fContact" name="contact" autocomplete="email" required></div>
+        <button class="btn btn-primary" type="submit">Send me my free map</button>
+        <p class="form-note" id="formNote">We only use this to send your map. No spam, no sales calls.</p>
+        <p class="form-done" id="formDone" hidden>Thanks! We’ll send your map within one business day. If you don’t hear from us, email hello@promoflix.ai or call (408) 462-5198.</p>
+      </form>
+    </div>
+  </section>
+
   <!-- FAQ -->
-  <section class="band" id="faq" style="padding-top:0">
+  <section class="band band-tint" id="faq">
     <div class="wrap faq-wrap">
       <div class="section-head">
         <p class="eyebrow">Questions</p>
@@ -638,12 +754,16 @@
       </div>
       <div class="faq-list">
         <details>
+          <summary>What’s the catch with the guarantee?<span class="plus" aria-hidden="true">+</span></summary>
+          <p>There isn’t one hidden in the fine print. You’ve probably been burned by marketing before, so we’d rather prove it than ask you to trust a sales pitch. Your exact guarantee and its conditions come with your free map, in plain English.</p>
+        </details>
+        <details>
           <summary>Do I have to switch software?<span class="plus" aria-hidden="true">+</span></summary>
           <p>No. We work with Jobber, Housecall Pro, ServiceTitan or QuickBooks, or from a simple customer list if you don’t use any of them.</p>
         </details>
         <details>
           <summary>Is giving you manager access safe?<span class="plus" aria-hidden="true">+</span></summary>
-          <p>Yes. You stay the owner of your Google profile. A manager can’t remove you, lock you out or transfer the profile, and you can remove our access in one click.</p>
+          <p>Yes. You stay the owner of your Google profile. A manager can’t remove you, lock you out or transfer the profile, and you can remove our access in one click. Every review stays yours if you leave.</p>
         </details>
         <details>
           <summary>What happens if I get a bad review?<span class="plus" aria-hidden="true">+</span></summary>
@@ -659,21 +779,21 @@
         </details>
         <details>
           <summary>How do I cancel?<span class="plus" aria-hidden="true">+</span></summary>
-          <p>Send us a note before your next billing date. There’s no contract and no cancellation fee, and your reviews stay on your profile.</p>
+          <p>Reply to any email from us. There’s no contract and no cancellation fee, and your reviews stay on your profile.</p>
         </details>
       </div>
     </div>
   </section>
 
   <!-- Closing CTA -->
-  <section class="closing">
+  <section class="closing band-tint">
     <div class="wrap">
       <div class="closing-card">
         <p class="eyebrow">Get started</p>
         <h2>Your customers already like your work. Let’s help more people find it.</h2>
-        <p>$297 a month, month-to-month, with a 60-day guarantee.</p>
+        <p>No contract. A risk-free start. You own everything.</p>
         <div class="cta-row">
-          <a class="btn btn-white" href="#pricing">Start for $297/mo</a>
+          <a class="btn btn-white" href="#free-map">Get your free map</a>
           <a class="btn btn-ghost-light" href="tel:+14084625198">Call (408) 462-5198</a>
         </div>
       </div>
@@ -692,3 +812,38 @@
     </nav>
   </div>
 </footer>
+
+<script>
+  // Free-map requests. Set FORM_ENDPOINT to your form service (Formspree,
+  // HubSpot, Zapier, …) to receive them as JSON. Until then the form opens an
+  // email to us with the details filled in.
+  (function () {
+    var FORM_ENDPOINT = '';
+    var EMAIL = 'hello@promoflix.ai';
+    var form = document.getElementById('mapForm');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var data = {};
+      new FormData(form).forEach(function (v, k) { data[k] = String(v).trim(); });
+      var missing = ['name', 'business', 'city', 'contact'].filter(function (k) { return !data[k]; });
+      var note = document.getElementById('formNote');
+      if (missing.length) {
+        note.textContent = 'Please fill in your name, business, city and an email or phone number.';
+        form.querySelector('[name="' + missing[0] + '"]').focus();
+        return;
+      }
+      var done = function () {
+        note.hidden = true;
+        document.getElementById('formDone').hidden = false;
+      };
+      if (FORM_ENDPOINT) {
+        fetch(FORM_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(data) })
+          .then(done, done);
+      } else {
+        var body = 'Please send my free neighborhood map.\n\n' + Object.keys(data).map(function (k) { return k + ': ' + data[k]; }).join('\n');
+        location.href = 'mailto:' + EMAIL + '?subject=' + encodeURIComponent('Free map: ' + data.business) + '&body=' + encodeURIComponent(body);
+        done();
+      }
+    });
+  })();
+</script>

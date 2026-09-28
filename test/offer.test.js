@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvedOffer, resolvedSender, auditLinks } from '../src/offer.js';
+import { config } from '../src/config.js';
 import { getNiche, detectNiche, NICHES, DEFAULT_NICHE } from '../src/niches.js';
 import { recommendCompetitors } from '../src/candidates.js';
 import { scanGrid } from '../src/audit.js';
@@ -12,14 +13,35 @@ import { band } from '../src/ranks.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-test('one offer definition: the button and micro-copy carry the price', () => {
-  const o = resolvedOffer();
-  assert.equal(o.name, 'Local Review Engine & Geo-Expansion');
-  assert.equal(o.cta, 'Start 60-Day Review Engine — $297/mo');
-  assert.equal(o.microcopy, '$297/mo flat · No contracts · Cancel anytime');
-  assert.equal(o.guarantee, '60-Day Momentum Guarantee: More reviews and more green pins on your Day 60 audit, or month two is refunded in full.');
-  const changed = resolvedOffer({ ...o, price: '$349/mo', cta: 'Start 60-Day Review Engine — {price}', microcopy: '{price} flat' });
-  assert.equal(changed.cta, 'Start 60-Day Review Engine — $349/mo', 'a price change reaches the button');
+test('one offer definition, two versions: each carries the price', () => {
+  const a = resolvedOffer('a');
+  assert.equal(a.name, 'Local Review Engine');
+  assert.equal(a.variant, 'a');
+  assert.equal(a.cta, 'Start my free 30 days');
+  assert.equal(a.microcopy, '$0 today · First 30 days free · Then $297/mo · Cancel anytime');
+  assert.equal(a.guaranteeTitle, 'First 30 days free');
+  assert.match(a.guaranteeBody, /Cancel before Day 30 and you pay nothing\. After that it’s \$297\/mo/);
+  assert.match(a.terms, /nothing is charged today/);
+
+  const b = resolvedOffer('b', { metric: 'top10', count: 4, today: 11 });
+  assert.equal(b.cta, 'Start for $297/mo');
+  assert.equal(b.guaranteeTitle, 'We work free until you get results');
+  assert.equal(b.guaranteeBody, 'If your Day 90 map doesn’t show you in Google’s top 10 in at least 4 more neighborhoods, you pay nothing more until it does.');
+  assert.ok(!/\{goal\}|\{price\}/.test(JSON.stringify(b)), 'every placeholder is filled');
+
+  const changed = resolvedOffer('b', null, { ...config.offer, price: '$349/mo' });
+  assert.equal(changed.cta, 'Start for $349/mo', 'a price change reaches the button');
+  assert.match(changed.guaranteeBody, /in more neighborhoods than your Day 1 map/, 'no target falls back to plain improvement');
+  assert.equal(resolvedOffer('zzz').variant, 'a', 'an unknown version falls back to A');
+});
+
+test('no refund promises are left anywhere customer-facing', async () => {
+  const files = ['public/app.js', 'public/checkout.html', 'public/checkout.js', 'src/executive.js', 'src/config.js', 'docs/promoflix-landing.html'];
+  for (const f of files) {
+    const text = await fs.readFile(path.join(ROOT, f), 'utf8');
+    assert.ok(!/refund/i.test(text), `${f} still mentions a refund`);
+    assert.ok(!/Momentum Guarantee|60-Day Goal/i.test(text), `${f} still has the old 60-day guarantee`);
+  }
 });
 
 test('retired names do not appear anywhere customer-facing', async () => {
@@ -109,6 +131,6 @@ test('print CSS: one US Letter sheet, no room for browser headers, clipped to on
 
 test('the offer box lists the three monthly deliverables', () => {
   const o = resolvedOffer();
-  assert.equal(o.deliverablesHeading, 'Everything Handled For You Each Month:');
-  assert.deepEqual(o.deliverables.map((d) => d.title), ['Automated review engine', 'Ongoing profile optimization', 'Monthly territory tracking']);
+  assert.equal(o.deliverablesHeading, 'Everything handled for you, every month:');
+  assert.deepEqual(o.deliverables.map((d) => d.title), ['A review request after every job', 'A reply to every review', 'A monthly neighborhood map']);
 });

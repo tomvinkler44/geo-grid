@@ -22,23 +22,43 @@ export const config = {
   /**
    * The offer. One definition drives the audit PDF, the checkout page and the
    * emails, so the name, button and guarantee cannot disagree. `{price}` in
-   * any string is replaced with the price.
+   * any string is replaced with the price, and `{goal}` with the prospect's
+   * own Day 90 map target (see guarantee.js).
+   *
+   * Two versions run as an A/B test. Each audit is assigned one, and its PDF,
+   * report email and checkout page all show that version only:
+   *   A - first 30 days free (the Stripe link for A must include the trial)
+   *   B - we work free until the map improves
    */
   offer: {
-    name: env('OFFER_NAME', 'Local Review Engine & Geo-Expansion'),
+    name: env('OFFER_NAME', 'Local Review Engine'),
     price: env('OFFER_PRICE', '$297/mo'),
-    cta: env('OFFER_CTA', 'Start 60-Day Review Engine — {price}'),
-    microcopy: env('OFFER_MICROCOPY', '{price} flat · No contracts · Cancel anytime'),
-    checkoutMicrocopy: env('OFFER_CHECKOUT_MICROCOPY', 'Instant 15-Min Setup · No Setup Fees · Month-to-Month'),
-    guarantee: env('OFFER_GUARANTEE',
-      '60-Day Momentum Guarantee: More reviews and more green pins on your Day 60 audit, or month two is refunded in full.'),
-    goalPins: Number(env('OFFER_GOAL_PINS', '15')),
-    deliverablesHeading: 'Everything Handled For You Each Month:',
+    /** ab = split audits between A and B; a or b = show one version only. */
+    test: env('OFFER_TEST', 'ab').toLowerCase(),
+    deliverablesHeading: 'Everything handled for you, every month:',
     deliverables: [
-      { title: 'Automated review engine', text: 'Polite post-service text requests, automated email reminders, and prompt, professional replies to every review.' },
-      { title: 'Ongoing profile optimization', text: 'Continuous listing calibration and algorithm updates to signal activity to Google and steadily turn outer red pins into green territory.' },
-      { title: 'Monthly territory tracking', text: 'Fresh visual reports delivered every 30 days verifying your expanding visibility across town.' },
+      { title: 'A review request after every job', text: 'A friendly text after each job, with an email reminder. Every customer gets asked, so it stays within Google’s rules.' },
+      { title: 'A reply to every review', text: 'Prompt, professional replies, and a heads-up with a calm reply drafted for you if a tough one comes in.' },
+      { title: 'A monthly neighborhood map', text: 'The same 25-point map every 30 days, so you see exactly where you gained ground. No jargon.' },
     ],
+    variants: {
+      a: {
+        label: 'Version A: first 30 days free',
+        cta: env('OFFER_A_CTA', 'Start my free 30 days'),
+        microcopy: env('OFFER_A_MICROCOPY', '$0 today · First 30 days free · Then {price} · Cancel anytime'),
+        guarantee: env('OFFER_A_GUARANTEE',
+          'First 30 days free: Try everything for 30 days. Cancel before Day 30 and you pay nothing. After that it’s {price}, month-to-month.'),
+        terms: 'Card required to start, but nothing is charged today. We email you 3 days before your first payment on Day 31. After that, {price} is billed monthly in advance. Cancel anytime.',
+      },
+      b: {
+        label: 'Version B: we work free until you get results',
+        cta: env('OFFER_B_CTA', 'Start for {price}'),
+        microcopy: env('OFFER_B_MICROCOPY', '{price} · No contract · Cancel anytime'),
+        guarantee: env('OFFER_B_GUARANTEE',
+          'We work free until you get results: If your Day 90 map doesn’t show you {goal}, you pay nothing more until it does.'),
+        terms: 'Your Day 90 map is re-checked with the same search, grid and spacing as your Day 1 map. The guarantee applies while you send us every completed job. No contract, cancel anytime.',
+      },
+    },
   },
   /** Who the audit and emails come from. */
   sender: {
@@ -57,7 +77,12 @@ export const config = {
    * prospect's machine, so this must be the public site, not localhost.
    */
   publicBaseUrl: env('PUBLIC_BASE_URL', 'https://promoflix.ai').replace(/\/+$/, ''),
-  /** Stripe Payment Link, e.g. https://buy.stripe.com/xxxx */
+  /**
+   * Stripe Payment Links, e.g. https://buy.stripe.com/xxxx. Version A's link
+   * must have the 30-day free trial switched on; version B's is a plain
+   * monthly subscription.
+   */
+  stripeCheckoutUrlA: env('STRIPE_CHECKOUT_URL_A', ''),
   stripeCheckoutUrl: env('STRIPE_CHECKOUT_URL', ''),
 
 };

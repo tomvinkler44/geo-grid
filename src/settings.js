@@ -26,9 +26,13 @@ export const FIELDS = {
   // leaving a blank on every report. (Clearing a key really should clear it.)
   offerName: { path: ['offer', 'name'], keepDefault: true },
   offerPrice: { path: ['offer', 'price'], keepDefault: true },
-  offerCta: { path: ['offer', 'cta'], keepDefault: true },
-  offerGuarantee: { path: ['offer', 'guarantee'], keepDefault: true },
-  offerMicrocopy: { path: ['offer', 'microcopy'], keepDefault: true },
+  offerTest: { path: ['offer', 'test'], keepDefault: true },
+  offerCtaA: { path: ['offer', 'variants', 'a', 'cta'], keepDefault: true },
+  offerMicrocopyA: { path: ['offer', 'variants', 'a', 'microcopy'], keepDefault: true },
+  offerGuaranteeA: { path: ['offer', 'variants', 'a', 'guarantee'], keepDefault: true },
+  offerCtaB: { path: ['offer', 'variants', 'b', 'cta'], keepDefault: true },
+  offerMicrocopyB: { path: ['offer', 'variants', 'b', 'microcopy'], keepDefault: true },
+  offerGuaranteeB: { path: ['offer', 'variants', 'b', 'guarantee'], keepDefault: true },
   senderCompany: { path: ['sender', 'company'], keepDefault: true },
   senderName: { path: ['sender', 'name'], keepDefault: true },
   senderCityState: { path: ['sender', 'cityState'], keepDefault: true },
@@ -36,6 +40,7 @@ export const FIELDS = {
   senderEmail: { path: ['sender', 'email'], keepDefault: true },
   senderPhone: { path: ['sender', 'phone'], keepDefault: true },
   publicBaseUrl: { path: ['publicBaseUrl'], keepDefault: true },
+  stripeCheckoutUrlA: { path: ['stripeCheckoutUrlA'] },
   stripeCheckoutUrl: { path: ['stripeCheckoutUrl'] },
   userAgent: { path: ['userAgent'] },
 };
@@ -93,6 +98,7 @@ export async function saveSettings(update = {}) {
   }
   if (saved.rankProvider && !['mock', 'dataforseo', 'serpapi'].includes(saved.rankProvider)) delete saved.rankProvider;
   if (saved.mapProvider && !['osm', 'carto', 'mapbox', 'none'].includes(saved.mapProvider)) delete saved.mapProvider;
+  if (saved.offerTest && !['ab', 'a', 'b'].includes(saved.offerTest)) delete saved.offerTest;
   apply();
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(FILE, JSON.stringify(saved, null, 2), { mode: 0o600 });

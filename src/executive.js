@@ -11,6 +11,7 @@ import { haversineMi } from './geometry.js';
 import { inTop3, isInvisible, BAND_LABELS } from './ranks.js';
 import { getNiche } from './niches.js';
 import { coveragePhrase, radiusMi } from './spacing.js';
+import { spotSentence } from './spot.js';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 const num = (n) => (n == null ? null : n.toLocaleString('en-US'));
@@ -314,10 +315,15 @@ function signature(sender) {
  * The first-touch permission email. Short, specific, and CAN-SPAM shaped:
  * accurate subject, the sender's postal address, and a working opt-out.
  *
+ * Written for owners who have been burned by marketing: it says who is
+ * writing, names a place they can check for themselves (`spot`, see spot.js),
+ * and asks only for a reply. It never mentions price or the offer, so it is
+ * the same for both versions of the A/B test.
+ *
  * `lead` and `rivals` only need {name, reviews, lat, lng}, so this works from
  * a step-2 scan before any report exists.
  */
-export function buildOutreachEmail({ lead, rivals, location, ownerName, niche: nicheKey, sender }) {
+export function buildOutreachEmail({ lead, rivals, location, ownerName, niche: nicheKey, sender, spot = null, keyword = '' }) {
   const niche = getNiche(nicheKey);
   const city = cityOf(location, lead) || 'your area';
   const withReviews = rivals.filter((r) => r && r.reviews != null);
@@ -336,15 +342,23 @@ export function buildOutreachEmail({ lead, rivals, location, ownerName, niche: n
     comparison = `You've clearly got happy customers, but your listing drops out of Google's top results a short distance from your door.`;
   }
 
+  // Who is writing, in one line: a real, local person, not a faceless agency.
+  const town = String(sender.cityState || '').split(',')[0].trim();
+  const peers = niche.marketNoun.replace(/^local\s+/i, '');
+  const intro = `I'm ${sender.name}${town ? `, based in ${town}` : ''}. I help a few local ${peers} get more Google reviews without adding work for their team.`;
+  const check = spotSentence(spot, keyword, city);
+
   const subject = comp ? `${lead.name} vs ${comp.name} on Google` : `${lead.name} on Google`;
   const body = [
     `Hi ${String(ownerName || '').trim() || 'there'},`,
     ``,
-    `I was looking at ${niche.marketNoun} in ${city} on Google and came across your listing.`,
+    intro,
+    ``,
+    `I was looking at ${niche.marketNoun} in ${city} on Google and came across your listing.${check ? ` ${check}` : ''}`,
     ``,
     comparison,
     ``,
-    `I put together a short report showing a few simple changes that could close that gap. Would it be all right if I sent it over? No charge, it's yours either way.`,
+    `I put together a one-page map of where you show up across ${city} and where you don't. Would it be all right if I sent it over? No charge, it's yours either way.`,
     ``,
     ...signature(sender),
     ``,
@@ -355,7 +369,7 @@ export function buildOutreachEmail({ lead, rivals, location, ownerName, niche: n
   if (!sender.canSpamAddressReady) {
     warnings.push('CAN-SPAM requires a full postal address (street, P.O. box, or private mailbox) in commercial email. Add one in Settings before sending.');
   }
-  return { subject, body, text: `Subject: ${subject}\n\n${body}`, competitor: comp?.name || null, warnings };
+  return { subject, body, text: `Subject: ${subject}\n\n${body}`, competitor: comp?.name || null, spot: spot || null, warnings };
 }
 
 /** The follow-up email that goes out with the report attached. */
@@ -375,7 +389,8 @@ export function buildReportEmail({ report, narrative, headline, offer, sender, l
     ...narrative.plan.map((d) => `- ${d.text}`),
     ``,
     `${offer.name}: ${offer.microcopy}.`,
-    offer.guarantee,
+    offer.guaranteeTitle ? `${offer.guaranteeTitle}. ${offer.guaranteeBody}` : offer.guarantee,
+    `You stay the owner of your Google profile, there's no contract, and every review stays yours if you ever leave.`,
     ``,
     `If you'd like to start: ${links.activate}`,
     ``,
@@ -389,7 +404,7 @@ export function buildReportEmail({ report, narrative, headline, offer, sender, l
 /* Assembly                                                                  */
 /* ------------------------------------------------------------------------ */
 
-export function buildExecutive({ report, signals, offer, sender, niche, links, ownerName }) {
+export function buildExecutive({ report, signals, offer, sender, niche, links, ownerName, spot = null }) {
   const headline = buildHeadline(report);
   const narrative = buildNarrative({ report, signals, offer, niche });
   const lead = report.businesses[0];
@@ -418,6 +433,8 @@ export function buildExecutive({ report, signals, offer, sender, niche, links, o
       ownerName,
       niche,
       sender,
+      spot,
+      keyword: report.keyword,
     }),
     keywordCoverage: keywordCoverage(report.keyword, report.location, lead),
   };

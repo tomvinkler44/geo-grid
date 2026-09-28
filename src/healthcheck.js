@@ -80,10 +80,13 @@ export async function runHealthCheck() {
   checks.push(/localhost|127\.0\.0\.1/.test(config.publicBaseUrl)
     ? { name: 'Checkout link', ok: false, detail: `Printed audits link to ${config.publicBaseUrl}, which a prospect cannot open. Set your public site in section 5.` }
     : { name: 'Checkout link', ok: true, detail: `Printed audits link to ${config.publicBaseUrl}/audit/…` });
-  checks.push(config.stripeCheckoutUrl
-    ? { name: 'Payments', ok: true, detail: 'Stripe Payment Link set; each payment is tagged with its audit id.' }
-    : { name: 'Payments', ok: null, detail: 'No Stripe Payment Link yet, so the checkout button emails you instead. Add it in section 5.' });
-
+  // Only the versions new audits can show need a link.
+  const shown = config.offer.test === 'a' ? ['a'] : config.offer.test === 'b' ? ['b'] : ['a', 'b'];
+  const url = { a: config.stripeCheckoutUrlA, b: config.stripeCheckoutUrl };
+  const missing = shown.filter((v) => !url[v]).map((v) => v.toUpperCase());
+  checks.push(missing.length
+    ? { name: 'Payments', ok: null, detail: `No Stripe Payment Link yet for version ${missing.join(' and ')}, so that checkout button emails you instead. Add it in section 5.` }
+    : { name: 'Payments', ok: true, detail: 'Stripe Payment Links set; each payment is tagged with its audit id and offer version. Version A’s link must include the 30-day free trial.' });
   const failed = checks.filter((c) => c.ok === false).length;
   return { ok: failed === 0, liveReady: liveReady(), checks };
 }

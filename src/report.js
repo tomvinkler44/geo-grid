@@ -8,6 +8,9 @@ import { buildExecutive } from './executive.js';
 import { resolvedOffer, resolvedSender, auditLinks } from './offer.js';
 import { getNiche } from './niches.js';
 import { saveAuditSummary } from './auditstore.js';
+import { mapGoal, pickVariant } from './guarantee.js';
+import { recordEvent } from './abtest.js';
+import { pickCheckSpot, locateSpot } from './spot.js';
 import { createHash } from 'node:crypto';
 import { renderReport } from './render.js';
 import { renderComparison } from './render-compare.js';
@@ -81,7 +84,7 @@ export function auditSlug(name, keyword, when = new Date().toISOString()) {
 }
 
 /** What the checkout page needs, and nothing else - it is served publicly. */
-export function checkoutSummary({ report, executive, niche, slugId }) {
+export function checkoutSummary({ report, executive, niche, slugId, variant = 'a', goal = null }) {
   const lead = report.businesses[0];
   const leader = executive.headline.leader;
   return {
@@ -91,9 +94,13 @@ export function checkoutSummary({ report, executive, niche, slugId }) {
     keyword: report.keyword,
     niche,
     currPins: lead.metrics.top3Count,
+    visiblePins: lead.metrics.visibleCount,
     totalPins: report.points.length,
     leader: leader ? leader.name : null,
     leaderPins: leader ? leader.metrics.top3Count : null,
+    // Which A/B version this prospect sees, and version B's Day 90 target.
+    variant,
+    goal: variant === 'b' ? goal : null,
     generatedAt: report.generatedAt,
   };
 }
@@ -120,20 +127,32 @@ export async function generateExecutive(scan, competitors, opts = {}) {
   report.basemap = rendered.basemap;
 
   const slugId = auditSlug(report.business.name, report.keyword, report.generatedAt);
-  const offer = resolvedOffer();
+  // A/B test: this audit's PDF, report email and checkout page all show one
+  // version of the offer. Version B's target comes from today's map.
+  const variant = pickVariant(slugId, config.offer.test, opts.variant);
+  const goal = variant === 'b' ? mapGoal(report.points.map((p) => p.ranks[0])) : null;
+  const offer = resolvedOffer(variant, goal);
   const sender = resolvedSender();
 
+  log('Finding a spot they can check themselves…');
+  const spot = await locateSpot(pickCheckSpot(report.points, (p) => p.ranks[0]));
+
   // Built once without links to learn the leader, then the links go in.
-  const draft = buildExecutive({ report, signals, offer, sender, niche, links: { activate: '', short: '' }, ownerName: opts.ownerName });
-  const summary = checkoutSummary({ report, executive: draft, niche, slugId });
+  const draft = buildExecutive({ report, signals, offer, sender, niche, links: { activate: '', short: '' }, ownerName: opts.ownerName, spot });
+  const summary = checkoutSummary({ report, executive: draft, niche, slugId, variant, goal });
   // Kept short so it survives email clients and fits on the printed page.
-  // Niche, city and totals come from the saved summary behind the slug.
+  // Niche, city and totals come from the saved summary behind the slug; the
+  // rest is repeated here so the page still works if that summary is missing.
   const links = auditLinks(slugId, {
     biz: summary.business,
     pins: summary.currPins,
     lead: summary.leader,
+    v: variant,
+    g: goal?.count,
+    m: goal?.metric === 'top3' ? 3 : goal?.metric === 'top10' ? 10 : null,
+    t: goal?.today,
   });
-  const executive = buildExecutive({ report, signals, offer, sender, niche, links, ownerName: opts.ownerName });
+  const executive = buildExecutive({ report, signals, offer, sender, niche, links, ownerName: opts.ownerName, spot });
 
   const outDir = path.resolve(opts.outputDir ?? config.outputDir);
   await fs.mkdir(outDir, { recursive: true });
@@ -149,6 +168,7 @@ export async function generateExecutive(scan, competitors, opts = {}) {
   await fs.writeFile(files.txt, `${executive.outreachEmail.text}\n\n----------\n\n${executive.reportEmail}`);
   await fs.writeFile(files.json, JSON.stringify({ id, slug: slugId, report, executive, signals }, null, 2));
   await saveAuditSummary(summary);
+  await recordEvent(slugId, variant, 'made');
 
-  return { id, slug: slugId, report, executive, signals, files, summary, panelSize: { width: rendered.width, height: rendered.height } };
+  return { id, slug: slugId, variant, report, executive, signals, files, summary, panelSize: { width: rendered.width, height: rendered.height } };
 }

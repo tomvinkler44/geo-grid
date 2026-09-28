@@ -1,8 +1,12 @@
 /*
  * Personalised checkout. Reads the audit either from the URL query string
- * (?business=...&currPins=...) or, for the short printed link, from the saved
- * summary for /audit/<slug>. All values are inserted as text, never as HTML:
- * anyone can edit a query string.
+ * (?biz=...&pins=...&v=b&g=4&m=10&t=11) or, for the short printed link, from
+ * the saved summary for /audit/<slug>. All values are inserted as text, never
+ * as HTML: anyone can edit a query string.
+ *
+ * Each audit belongs to one version of the A/B offer test, and this page shows
+ * only that version: A (first 30 days free) or B (we work free until the map
+ * improves).
  */
 (function () {
   'use strict';
@@ -24,16 +28,44 @@
     return e;
   }
 
+  // Mirrors goalPhrase() in src/guarantee.js.
+  function goalPhrase(g) {
+    if (!g || !g.metric || !g.count) return 'in more neighborhoods than your Day 1 map';
+    return 'in Google’s ' + (g.metric === 'top10' ? 'top 10' : 'top 3') + ' in at least ' + g.count + ' more neighborhoods';
+  }
+
+  function track(event) {
+    if (!slug) return;
+    try {
+      fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: slug, event: event }),
+        keepalive: true,
+      }).catch(function () {});
+    } catch (e) { /* tracking never blocks the page */ }
+  }
+
   Promise.all([
     fetch('/api/checkout-config').then(function (r) { return r.json(); }),
     slug ? fetch('/api/audit-summary/' + slug).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }) : Promise.resolve(null),
   ]).then(function (res) {
     var cfg = res[0], saved = res[1] || {};
-    // Query parameters win: they are what the printed button carried.
-    // Current links use biz/pins/lead; business/currPins/leader are from
-    // audits printed before the rename and must keep working.
+    // The saved audit wins for the offer version, so editing the link cannot
+    // switch it. Query parameters fill in when there is no saved audit.
+    // biz/pins/lead are current; business/currPins/leader are from audits
+    // printed before the rename and must keep working.
     var pick = function (a, b) { return q.get(a) || q.get(b); };
     var pinsRaw = q.has('pins') ? q.get('pins') : q.has('currPins') ? q.get('currPins') : null;
+    var variant = saved.variant || (q.get('v') === 'b' ? 'b' : 'a');
+    var goal = saved.goal || null;
+    if (!goal && variant === 'b' && q.get('g')) {
+      goal = {
+        metric: q.get('m') === '3' ? 'top3' : 'top10',
+        count: intOr(q.get('g'), null),
+        today: intOr(q.get('t'), null),
+      };
+    }
     var d = {
       business: pick('biz', 'business') || saved.business || '',
       currPins: pinsRaw != null ? intOr(pinsRaw, null) : (saved.currPins != null ? saved.currPins : null),
@@ -41,46 +73,62 @@
       leader: pick('lead', 'leader') || saved.leader || '',
       niche: q.get('niche') || saved.niche || cfg.defaultNiche,
       city: q.get('city') || saved.city || '',
+      variant: variant,
+      goal: goal,
     };
     render(cfg, d);
+    track('viewed');
   }).catch(function () {
     $('subhead').textContent = 'This page could not load its details. Please refresh, or email us and we will send your link directly.';
   });
 
   function render(cfg, d) {
-    var offer = cfg.offer, sender = cfg.sender;
+    var offer = cfg.offers[d.variant] || cfg.offers.a;
+    var sender = cfg.sender;
     var niche = cfg.niches[d.niche] || cfg.niches[cfg.defaultNiche];
+    var isA = d.variant === 'a';
 
     // ---- Header
-    document.title = d.business ? 'Activate the Review Engine for ' + d.business : 'Activate the Review Engine';
-    $('title').textContent = d.business ? 'Activate the Review Engine for ' + d.business : 'Activate the Review Engine';
+    var title = 'Start your Local Review Engine' + (d.business ? ' for ' + d.business : '');
+    document.title = title;
+    $('title').textContent = title;
     $('subhead').textContent = d.leader
-      ? 'Close the gap against ' + d.leader + ' without learning new software or signing contracts.'
-      : 'Close the gap without learning new software or signing contracts.';
+      ? 'Close the gap on ' + d.leader + ' without learning new software or signing a contract.'
+      : 'Get found in more of the neighborhoods you serve, without learning new software or signing a contract.';
 
-    if (d.currPins != null) {
-      var total = d.totalPins;
-      // The goal is the offer's target, but never one they have already hit.
-      var goal = Math.min(total, Math.max(offer.goalPins, d.currPins + 5));
-      $('curr').textContent = d.currPins;
-      $('total').textContent = total;
-      $('total2').textContent = total;
-      $('goal').textContent = goal;
+    // Today's map, and for version B the Day 90 target it guarantees.
+    var total = d.totalPins;
+    var g = d.goal;
+    if (!isA && g && g.metric && g.count && g.today != null) {
+      var top = g.metric === 'top10' ? 'top 10' : 'top 3';
+      $('todayValue').textContent = top + ' in ' + g.today + ' of ' + total + ' neighborhoods';
+      $('goalValue').textContent = top + ' in ' + Math.min(total, g.today + g.count) + '+';
+      ['goalArrow', 'goalLabel', 'goalValue'].forEach(function (id) { $(id).classList.remove('hidden'); });
+      $('tracker').classList.remove('hidden');
+    } else if (d.currPins != null) {
+      $('todayValue').textContent = 'top 3 in ' + d.currPins + ' of ' + total + ' neighborhoods';
       $('tracker').classList.remove('hidden');
     }
 
     // ---- Offer
     $('offerName').textContent = offer.name;
     var m = String(offer.price).match(/^(\D*[\d,.]+)\s*(?:\/\s*(\w+))?/);
-    $('price').textContent = m ? m[1] : offer.price;
-    $('per').textContent = m && m[2] ? 'per ' + (m[2] === 'mo' ? 'month' : m[2]) : '';
+    var amount = m ? m[1] : offer.price;
+    var per = m && m[2] ? (m[2] === 'mo' ? 'month' : m[2]) : '';
+    if (isA) {
+      $('price').textContent = '$0 today';
+      $('per').textContent = 'then ' + amount + (per ? '/' + per : '');
+    } else {
+      $('price').textContent = amount;
+      $('per').textContent = per ? 'per ' + per : '';
+    }
 
     var features = [
-      ['Automated Post-Job Review SMS Engine', 'Sends review invites to 100% of customers after every ' + niche.transactionEvent + '. FTC compliant, zero gating: every customer gets the same link. A2P 10DLC carrier registration included.'],
-      ['Active Owner Review Replies', 'Replies posted within 24 hours, signaling active profile management to searchers and to Google.'],
-      ['High-Margin Service Re-Mapping', 'Profile categories and service descriptions re-mapped to capture ' + niche.highTicket + '.'],
-      ['Monthly 25-Pin Heatmap Progress Reports', 'A new grid every 30 days, so you can see amber and red pins turning green.'],
-      ['Zero Tech Friction', 'Plugs into ' + niche.software + ', or a dedicated private text line.'],
+      ['A review request after every ' + niche.transactionEvent, 'A friendly text with an email reminder, sent to every customer, not just the happy ones. That keeps it within Google’s rules and FTC guidance. Carrier registration (A2P 10DLC) included.'],
+      ['A reply to every review', 'Prompt, professional replies. If a low rating comes in, you hear about it right away, with a calm reply drafted for you to approve.'],
+      ['A Google profile that stays current', 'Services, categories and photos kept up to date, with extra attention on the work you want more of: ' + niche.highTicket + '.'],
+      ['A neighborhood map every 30 days', 'The same 25-point map as your audit, rechecked every month, so you can see where you gained ground.'],
+      ['Nothing new to learn', 'Works with ' + niche.software + '.'],
     ];
     var ul = $('features');
     features.forEach(function (f) {
@@ -94,40 +142,72 @@
       ul.appendChild(li);
     });
 
-    // "60-Day Momentum Guarantee: body..." -> title + body, one source of truth.
-    var g = String(offer.guarantee);
-    var cut = g.indexOf(':');
-    $('guaranteeTitle').textContent = cut > 0 ? g.slice(0, cut) : '60-Day Momentum Guarantee';
-    $('guaranteeBody').textContent = cut > 0 ? g.slice(cut + 1).trim() : g;
+    // "Title: body", with version B's {goal} filled from this audit.
+    var gText = String(offer.guaranteeTemplate || offer.guarantee).replace(/\{goal\}/g, goalPhrase(d.goal));
+    var cut = gText.indexOf(':');
+    $('guaranteeTitle').textContent = cut > 0 ? gText.slice(0, cut) : '';
+    $('guaranteeBody').textContent = cut > 0 ? gText.slice(cut + 1).trim() : gText;
 
     // ---- Buy button
     $('buyText').textContent = offer.cta;
-    $('checkoutMicro').textContent = offer.checkoutMicrocopy;
+    $('checkoutMicro').textContent = offer.microcopy;
+    $('terms').textContent = offer.terms;
     var buy = $('buy');
-    if (cfg.stripeCheckoutUrl) {
-      var u;
-      try { u = new URL(cfg.stripeCheckoutUrl); } catch (e) { u = null; }
-      if (u) {
-        // Stripe Payment Links carry this through to the payment, so each
-        // payment can be matched to the audit that produced it.
-        if (slug) u.searchParams.set('client_reference_id', slug);
-        buy.href = u.toString();
-      }
+    var stripeUrl = (cfg.stripe || {})[d.variant] || '';
+    var u = null;
+    if (stripeUrl) { try { u = new URL(stripeUrl); } catch (e) { u = null; } }
+    if (u) {
+      // Stripe Payment Links carry this through to the payment, so each
+      // payment can be matched to its audit and its offer version.
+      if (slug) u.searchParams.set('client_reference_id', slug + '_' + d.variant);
+      buy.href = u.toString();
     } else {
-      var subject = 'Start the Review Engine' + (d.business ? ' for ' + d.business : '');
+      var subject = 'Start the Local Review Engine' + (d.business ? ' for ' + d.business : '');
       buy.href = 'mailto:' + sender.email + '?subject=' + encodeURIComponent(subject) +
-        '&body=' + encodeURIComponent('Please send me the payment link.' + (slug ? '\n\nAudit: ' + slug : ''));
+        '&body=' + encodeURIComponent('Please send me the payment link.' + (slug ? '\n\nAudit: ' + slug + '_' + d.variant : ''));
       $('noStripe').classList.remove('hidden');
     }
+    buy.addEventListener('click', function () { track('clicked'); });
+
+    // ---- What happens next
+    var steps = [
+      ['Manager access', 'a few minutes', 'We walk you through adding us as a manager on your Google profile. You stay the owner and can remove us anytime.'],
+      ['Setup', 'usually one business day', 'Review requests, reply handling and profile updates are switched on.'],
+      ['Day 30: your first progress map', '', 'We rerun your map and send it with a short note on what changed.'],
+    ];
+    if (isA) steps.push(['Day 31: first payment', '', 'We email you 3 days before. Cancel before then and you pay nothing.']);
+    else steps.push(['Day 90: guarantee check', '', 'We compare your Day 90 map to your audit. If it doesn’t show you ' + goalPhrase(d.goal) + ', you pay nothing more until it does.']);
+    var ol = $('steps');
+    steps.forEach(function (s, i) {
+      var li = el('li', 'flex gap-3');
+      li.appendChild(el('span', 'shrink-0 w-7 h-7 rounded-full bg-slate-800 text-emerald-300 grid place-items-center text-xs font-bold', String(i + 1)));
+      var p = el('p');
+      var b = el('b', 'text-slate-100', s[0]);
+      if (s[1]) b.appendChild(el('span', 'font-normal text-slate-400', ' (' + s[1] + ')'));
+      b.appendChild(document.createTextNode('. '));
+      p.appendChild(b);
+      p.appendChild(el('span', 'text-slate-300', s[2]));
+      li.appendChild(p);
+      ol.appendChild(li);
+    });
 
     // ---- FAQ
-    var faqs = [
-      ['Do I have to switch my software?', 'No. It works with your current stack (' + niche.software + '), or simple texts from a dedicated line.'],
-      ['Is Manager access safe?', 'Yes. You keep full primary ownership. A Manager can never remove you, lock you out, or transfer the profile, and you can revoke our access in one click.'],
-      ['What if I get a bad review?', 'Every customer receives the same review link. We never filter who is asked, which is what keeps this compliant with Google’s rules and FTC guidance. When a low rating comes in, you are alerted immediately with a calm, professional reply drafted and ready for you to approve.'],
-      ['Who writes the replies?', 'Custom AI drafts a professional reply to each review. Anything sensitive, such as a complaint, a health detail, or a named employee, is held for a person to review before it posts.'],
-      ['Are the texts compliant?', 'Yes. We register your texting with the carriers under A2P 10DLC, include STOP opt-out language in every message, and only text customers who have agreed to receive texts from you.'],
+    var burned = 'Because you’ve probably been burned by marketing before. We’d rather show you results than ask you to trust a sales pitch.';
+    var faqs = isA ? [
+      ['When will I be charged?', 'Not today. Your first payment of ' + amount + ' is on Day 31, and we email you 3 days before. Cancel before then and you’re never charged.'],
+      ['Why is the first month free?', burned],
+    ] : [
+      ['How does the guarantee work?', 'On Day 90 we rerun the same map as your audit: same search, same grid, same spacing. If it doesn’t show you ' + goalPhrase(d.goal) + ', you pay nothing more until it does. We keep working the whole time.'],
+      ['Why offer that?', burned + ' We only want to be paid while it’s working.'],
     ];
+    faqs = faqs.concat([
+      ['Do I have to switch my software?', 'No. It works with ' + niche.software + '.'],
+      ['Is manager access safe?', 'Yes. You stay the owner of your Google profile. A manager can’t remove you, lock you out or transfer the profile, and you can remove our access in one click. Every review stays yours if you leave.'],
+      ['What if I get a bad review?', 'Every customer gets the same review request. We never pick and choose who is asked, which is what keeps this within Google’s rules and FTC guidance. When a low rating comes in, you hear about it right away, with a calm, professional reply drafted for you to approve.'],
+      ['Who writes the replies?', 'We draft them with AI set up for your business and services. Anything sensitive, such as a complaint, a health detail or an employee’s name, is held for a person to review before it posts.'],
+      ['Are the texts compliant?', 'Yes. Your texting is registered with the carriers (A2P 10DLC), every message includes a way to opt out, and we only text customers who have agreed to hear from you.'],
+      ['How do I cancel?', 'Reply to any email from us, or cancel from the billing link in your receipt. No contract and no cancellation fee.'],
+    ]);
     var faq = $('faq');
     faqs.forEach(function (f) {
       var det = el('details', 'group py-3');

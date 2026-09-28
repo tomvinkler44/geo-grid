@@ -35,6 +35,28 @@
       <ul id="checks" class="space-y-2 text-sm"></ul>
     </section>
 
+    <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-3">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="font-semibold">A/B test results</h2>
+          <p class="text-sm text-slate-600">How each offer version is doing. Paid sign-ups are in Stripe: look for client references ending in <code>_a</code> or <code>_b</code>.</p>
+        </div>
+        <button id="abRefresh" type="button" class="rounded-lg border border-slate-300 bg-white text-sm font-medium px-4 py-2 hover:bg-slate-100 whitespace-nowrap">Refresh</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-slate-500 border-b">
+            <th class="py-2 pr-4 font-medium">Version</th>
+            <th class="py-2 pr-4 font-medium">Audits made</th>
+            <th class="py-2 pr-4 font-medium">Checkout page opened</th>
+            <th class="py-2 font-medium">Start button clicked</th>
+          </tr></thead>
+          <tbody id="abRows"><tr><td class="py-2 text-slate-500" colspan="4">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-500">Opening a prospect’s checkout link yourself counts as an open, so test with a throwaway audit. Wait for at least 30 opened pages per version before reading much into the numbers.</p>
+    </section>
+
     <form id="form" class="space-y-6">
       <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
         <h2 class="font-semibold">1. Where do real rankings come from?</h2>
@@ -117,27 +139,54 @@
       </section>
 
       <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
-        <h2 class="font-semibold">5. The offer</h2>
-        <p class="text-sm text-slate-600">One definition drives the audit, the checkout page and both emails, so they always match. Write <code>{price}</code> anywhere to insert the price.</p>
+        <h2 class="font-semibold">5. The offer and the A/B test</h2>
+        <p class="text-sm text-slate-600">One definition drives the audit, the checkout page and both emails, so they always match. Write <code>{price}</code> anywhere to insert the price. In version B, <code>{goal}</code> becomes the prospect’s own Day 90 target, for example “in Google’s top 10 in at least 4 more neighborhoods”.</p>
         <div class="grid sm:grid-cols-2 gap-4">
-          <label class="block sm:col-span-2"><span class="text-sm font-medium">Service name</span>
-            <input name="offerName" placeholder="Local Review Engine &amp; Geo-Expansion" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Service name</span>
+            <input name="offerName" placeholder="Local Review Engine" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
           <label class="block"><span class="text-sm font-medium">Price</span>
             <input name="offerPrice" placeholder="$297/mo" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-          <label class="block"><span class="text-sm font-medium">Button text</span>
-            <input name="offerCta" placeholder="Start 60-Day Review Engine — {price}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-          <label class="block sm:col-span-2"><span class="text-sm font-medium">Line under the button</span>
-            <input name="offerMicrocopy" placeholder="{price} flat · No contracts · 60-day guarantee · 15-min setup" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-          <label class="block sm:col-span-2"><span class="text-sm font-medium">Guarantee</span>
-            <input name="offerGuarantee" placeholder="60-Day Momentum Guarantee: More reviews and more green pins …" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <span class="text-xs text-slate-500">Text before the first colon becomes the heading on the checkout page.</span></label>
-          <label class="block sm:col-span-2"><span class="text-sm font-medium">Stripe Payment Link</span>
-            <input name="stripeCheckoutUrl" placeholder="https://buy.stripe.com/…" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <span class="text-xs text-slate-500">The checkout button goes here, tagged with the audit id so each payment can be matched to its audit. Until it is set, the button emails you instead.</span></label>
-          <label class="block sm:col-span-2"><span class="text-sm font-medium">Public site address</span>
-            <input name="publicBaseUrl" placeholder="https://promoflix.ai" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <span class="text-xs text-slate-500">Where the button on a printed audit points. It must be where this app is publicly hosted — a prospect cannot open localhost.</span></label>
+          <label class="block sm:col-span-2"><span class="text-sm font-medium">Which offer do new audits show?</span>
+            <select name="offerTest" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+              <option value="ab">A/B test: half get version A, half get version B</option>
+              <option value="a">Version A only: first 30 days free</option>
+              <option value="b">Version B only: we work free until you get results</option>
+            </select>
+            <span class="text-xs text-slate-500">Changing this only affects audits made from now on. Each audit keeps the version it was made with.</span></label>
         </div>
+
+        <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+          <p class="text-sm font-semibold">Version A: first 30 days free</p>
+          <label class="block"><span class="text-sm font-medium">Button text</span>
+            <input name="offerCtaA" placeholder="Start my free 30 days" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Line under the button</span>
+            <input name="offerMicrocopyA" placeholder="$0 today · First 30 days free · Then {price} · Cancel anytime" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Guarantee</span>
+            <input name="offerGuaranteeA" placeholder="First 30 days free: Try everything for 30 days…" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">Text before the first colon becomes the heading.</span></label>
+          <label class="block"><span class="text-sm font-medium">Stripe Payment Link for version A</span>
+            <input name="stripeCheckoutUrlA" placeholder="https://buy.stripe.com/…" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-amber-700">This link must have Stripe’s 30-day free trial switched on, or customers are charged on day one while the page says they aren’t.</span></label>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+          <p class="text-sm font-semibold">Version B: we work free until you get results</p>
+          <label class="block"><span class="text-sm font-medium">Button text</span>
+            <input name="offerCtaB" placeholder="Start for {price}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Line under the button</span>
+            <input name="offerMicrocopyB" placeholder="{price} · No contract · Cancel anytime" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+          <label class="block"><span class="text-sm font-medium">Guarantee</span>
+            <input name="offerGuaranteeB" placeholder="We work free until you get results: If your Day 90 map doesn’t show you {goal}, …" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">Keep <code>{goal}</code> in it so each prospect sees their own target.</span></label>
+          <label class="block"><span class="text-sm font-medium">Stripe Payment Link for version B</span>
+            <input name="stripeCheckoutUrl" placeholder="https://buy.stripe.com/…" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class="text-xs text-slate-500">A plain monthly subscription, no trial.</span></label>
+        </div>
+
+        <p class="text-xs text-slate-500">Each payment is tagged with the audit id and version (for example <code>pacific-coast-4f2a1_b</code>) so you can see in Stripe which version sold. Until a version’s link is set, its button emails you instead.</p>
+        <label class="block"><span class="text-sm font-medium">Public site address</span>
+          <input name="publicBaseUrl" placeholder="https://promoflix.ai" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <span class="text-xs text-slate-500">Where the button on a printed audit points. It must be where this app is publicly hosted — a prospect cannot open localhost.</span></label>
       </section>
 
       <section class="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
@@ -197,6 +246,28 @@
       for (const [k, v] of Object.entries(data)) if (form[k]) form[k].value = v;
       status.textContent = 'Saved. Click "Check setup" to test it.';
     });
+
+    async function loadAb() {
+      const rows = document.getElementById('abRows');
+      try {
+        const d = await (await fetch('/api/abtest')).json();
+        const pct = (x) => (x == null ? '–' : Math.round(x * 100) + '%');
+        rows.innerHTML = ['a', 'b'].map((v) => {
+          const s = d.stats[v];
+          const off = d.mode !== 'ab' && d.mode !== v ? ' <span class="text-slate-400">(not being shown)</span>' : '';
+          return `<tr class="border-b last:border-0">
+            <td class="py-2 pr-4">${d.labels[v]}${off}</td>
+            <td class="py-2 pr-4 tabular-nums">${s.made}</td>
+            <td class="py-2 pr-4 tabular-nums">${s.viewed} <span class="text-slate-500">(${pct(s.viewRate)} of audits)</span></td>
+            <td class="py-2 tabular-nums">${s.clicked} <span class="text-slate-500">(${pct(s.clickRate)} of opened)</span></td>
+          </tr>`;
+        }).join('');
+      } catch {
+        rows.innerHTML = '<tr><td class="py-2 text-red-600" colspan="4">Could not load the results.</td></tr>';
+      }
+    }
+    loadAb();
+    document.getElementById('abRefresh').addEventListener('click', loadAb);
 
     document.getElementById('mapTest').addEventListener('click', async () => {
       const ul = document.getElementById('mapResults');

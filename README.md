@@ -165,9 +165,23 @@ links still work), and the plain-text
 fallback `promoflix.ai/audit/<slug>` works on its own because a short public summary is saved per
 audit. The checkout page, its two small APIs, the stylesheet and fonts are exempt from
 `APP_PASSWORD`, so a prospect never sees the admin prompt; everything else stays gated. Values from
-the URL are inserted as text only. The buy button goes to `STRIPE_CHECKOUT_URL` with
-`client_reference_id=<slug>` so each payment can be matched to its audit; until that is set it opens
-an email instead.
+the URL are inserted as text only.
+
+**Offer A/B test.** Each audit is assigned version A (first 30 days free) or B (we work free until
+the Day 90 map shows the prospect in N more neighborhoods) by `OFFER_TEST` (`ab`, `a` or `b`), or
+pinned per audit in step 3. The split hashes the slug, so it is stable. N is a third of the
+neighborhoods where the prospect is outside the top 10 today, clamped to 2–5; with fewer than 6
+such points it switches to top-3 neighborhoods (`src/guarantee.js`). The version and target are
+saved in the audit summary, so the PDF, report email and checkout page always agree and editing the
+link cannot switch them. The buy button goes to `STRIPE_CHECKOUT_URL_A` (must include the 30-day
+trial) or `STRIPE_CHECKOUT_URL`, with `client_reference_id=<slug>_<a|b>`; until a link is set it
+opens an email instead. `POST /api/track` records checkout opens and button clicks per version
+(`data/abtest.json`, unique per audit); Settings shows the table.
+
+**Check-it-yourself line.** The outreach email names the nearest grid point where the prospect is
+outside the top 3 (preferring outside the top 10), the three businesses Google shows there, and the
+neighborhood name when a reverse geocoder knows it (`src/spot.js`), falling back to a compass
+direction. It never mentions price or the offer, so it is the same for both versions.
 
 Guard rails built in, each covered by a test:
 
@@ -226,6 +240,9 @@ src/candidates.js     archetype selection for step 2
 src/executive.js      headline, metric cards, two-column narrative, both emails
 src/niches.js         industry vocabulary (tree services, assisted living, generic)
 src/offer.js          the one offer/sender definition, and audit links
+src/guarantee.js      A/B version assignment and version B's Day 90 target
+src/abtest.js         A/B tally: audits made, checkout opened, button clicked
+src/spot.js           the outreach email's check-it-yourself neighborhood
 src/ranks.js          rank bands: 1–3 visible, 4–10 weak, 11+ invisible
 src/auditstore.js     public per-audit summaries for the short checkout link
 public/checkout.*     the prospect-facing checkout page

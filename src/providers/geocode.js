@@ -291,3 +291,51 @@ export async function placePopulation(location) {
   await saveCache();
   return pop;
 }
+
+/**
+ * The neighborhood name at a point, e.g. "Willow Glen", or null. Used to make
+ * the outreach email's "check it yourself" line concrete, so every failure is
+ * silent and cached, and the caller falls back to a compass direction.
+ */
+export async function placeNameAt(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const store = await loadCache();
+  const key = `rev:${lat.toFixed(3)},${lng.toFixed(3)}`;
+  if (key in store) return store[key];
+  let hit = null;
+  let answered = false;
+  try {
+    const j = await getJson(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&lang=en`, 4000);
+    const p = j?.features?.[0]?.properties || {};
+    answered = true;
+    hit = pickPlace({ small: p.district || p.locality, city: p.city || p.town || p.village });
+  } catch { /* try the next service */ }
+  if (!hit) {
+    try {
+      const j = await getJson(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&addressdetails=1`,
+        4000,
+      );
+      const a = j?.address || {};
+      answered = true;
+      hit = pickPlace({
+        small: a.neighbourhood || a.suburb || a.quarter || a.city_district,
+        city: a.city || a.town || a.village,
+      });
+    } catch { /* silent */ }
+  }
+  // An outage is not an answer: only remember what a service actually said.
+  if (answered) {
+    store[key] = hit;
+    await saveCache();
+  }
+  return hit;
+}
+
+/** { name, city } where name is the smaller area if there is one. */
+function pickPlace({ small, city }) {
+  const s = String(small || '').trim();
+  const c = String(city || '').trim();
+  if (!s && !c) return null;
+  return { name: s && s.toLowerCase() !== c.toLowerCase() ? s : '', city: c };
+}

@@ -90,6 +90,12 @@
     } else {
       $('mockHelp').textContent = 'Uncheck to run 25 real lookups via ' + cfg.rankProvider + '.';
     }
+    $('offerTestNote').textContent = cfg.offerTest === 'ab'
+      ? 'The A/B test is on: each audit gets version A or B at random, 50/50. Change it in Settings.'
+      : 'Settings show version ' + String(cfg.offerTest).toUpperCase() + ' on every audit.';
+    if (!cfg.stripeReady) {
+      $('offerTestNote').textContent += ' Add both Stripe links in Settings so the start button can take payment.';
+    }
     $('niche').innerHTML = Object.keys(cfg.niches).map(function (k) {
       return '<option value="' + esc(k) + '"' + (k === cfg.defaultNiche ? ' selected' : '') + '>' + esc(cfg.niches[k].label) + '</option>';
     }).join('');
@@ -342,7 +348,8 @@
       scanId: state.scan.scanId,
       competitors: state.chosen.filter(Boolean),
       niche: $('niche').value,
-      ownerName: $('ownerName').value || undefined
+      ownerName: $('ownerName').value || undefined,
+      variant: $('offerVariant').value || undefined
     }).then(function (d) {
       state.result = d;
       renderExecutive(d);
@@ -381,7 +388,7 @@
       return '<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:' + color + '"></span>' + label + '</span>';
     };
     $('xLegend').innerHTML =
-      dot('#22c55e', '1–3 Visible') + dot('#f59e0b', '4–10 Weak') + dot('#ef4444', '11+ Invisible') +
+      dot('#22c55e', 'Top 3: customers see you') + dot('#f59e0b', '4–10: below the first three') + dot('#ef4444', '11+: not showing') +
       '<span class="text-slate-300">|</span>' +
       '<span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-full border-2 border-slate-900"></span>Circled pin = Your Address</span>' +
       '<span class="text-slate-300">|</span><span>' + esc(rep.spacingMi) + ' mi grid spacing</span>';
@@ -408,10 +415,9 @@
     var offer = ex.offer;
     $('xOfferName').textContent = offer.name;
     $('xMicro').textContent = offer.microcopy;
-    var g = String(offer.guarantee), cut = g.indexOf(':');
-    $('xGuarantee').innerHTML = cut > 0
-      ? '<b class="text-slate-900">' + esc(g.slice(0, cut + 1)) + '</b> ' + esc(g.slice(cut + 1).trim())
-      : esc(g);
+    $('xGuarantee').innerHTML = offer.guaranteeTitle
+      ? '<b class="text-slate-900">' + esc(offer.guaranteeTitle) + ':</b> ' + esc(offer.guaranteeBody)
+      : esc(offer.guarantee);
     $('xDeliverHead').textContent = offer.deliverablesHeading || '';
     $('xDeliverables').innerHTML = (offer.deliverables || []).map(function (x) {
       return '<li class="print-deliv flex gap-1.5 text-[12px] leading-snug text-slate-700">' +
@@ -421,6 +427,10 @@
     $('xCta').textContent = offer.cta + ' →';
     $('xCta').href = ex.links.activate;
     $('xShort').textContent = ex.links.short;
+
+    // For you only (hidden in print): which A/B version this audit shows.
+    $('variantBadge').textContent = 'Offer ' + String(offer.variant || 'a').toUpperCase() +
+      (offer.variant === 'b' ? ' · work free until results' : ' · first 30 days free');
 
     var s = ex.sender;
     $('xSender').textContent = [s.company, s.name, s.cityState, s.phone].filter(Boolean).join(' · ');

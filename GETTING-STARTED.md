@@ -119,7 +119,6 @@ A one-page audit appears on the right:
 - A headline saying what share of local searches they win, next to the market leader.
 - Two short columns: how they rank today, and what moves the pins.
 - A grey box at the bottom with your price, a green button that opens the prospect's personal checkout page, what they get each month, and the guarantee.
-- Your offer and price at the bottom.
 
 Bottom right of the screen there are two buttons. **Export / Print PDF** opens
 your printer dialog, already laid out to fit one page; choose "Save as PDF" to
@@ -128,6 +127,34 @@ clipboard, ready to paste into an email.
 
 To change the offer and price at the bottom of the report, open **⚙ Settings**
 and scroll to section 5.
+
+### The A/B test: two versions of the offer
+
+Every audit shows one of two offers, picked at random, half and half:
+
+- **Version A: first 30 days free.** $0 today, then $297 a month.
+- **Version B: we work free until you get results.** $297 a month from day
+  one. If the Day 90 map doesn't show the prospect in more neighborhoods (the
+  exact number is worked out from their own map and printed on their audit),
+  they pay nothing more until it does.
+
+The audit, the report email and the prospect's checkout page all show the same
+version, so nobody sees both. Just above the green **Generate** button you can
+pin one version for a single audit; otherwise it follows Settings.
+
+Before you send audits, create **two** Stripe Payment Links and paste both into
+Settings, section 5:
+
+1. **Version A:** a $297/month subscription with Stripe's **free trial** set to
+   30 days. Also turn on Stripe's reminder email before a trial ends, and the
+   customer portal so people can cancel themselves.
+2. **Version B:** the same $297/month subscription, with no trial.
+
+To see which version is winning, open **⚙ Settings**: the **A/B test results**
+table at the top counts audits made, checkout pages opened and start buttons
+clicked for each version. Paid sign-ups are in Stripe; each payment's client
+reference ends in `_a` or `_b`. Wait for about 30 opened checkout pages per
+version before deciding. Then set section 5 to the winner.
 
 ## Step 5 — Switch on real rankings (when you are ready)
 

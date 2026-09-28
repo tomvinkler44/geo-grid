@@ -8,7 +8,10 @@ import { recommendCompetitors, ARCHETYPES } from './candidates.js';
 import { saveScan, loadScan, pruneScans } from './scanstore.js';
 import { loadSettings, readSettings, saveSettings, liveReady } from './settings.js';
 import { runHealthCheck, testMapProviders } from './healthcheck.js';
-import { resolvedOffer, resolvedSender } from './offer.js';
+import { resolvedOffer, resolvedSender, offerTemplates, stripeUrlFor } from './offer.js';
+import { recordEvent, abStats } from './abtest.js';
+import { pickCheckSpot, locateSpot } from './spot.js';
+import { findBusinessRank } from './providers/match.js';
 import { publicNiches, detectNiche, getNiche, DEFAULT_NICHE } from './niches.js';
 import { buildOutreachEmail } from './executive.js';
 import { loadAuditSummary, SLUG_RE } from './auditstore.js';
@@ -32,6 +35,7 @@ const PUBLIC_PATHS = [
   /^\/audit\/[a-z0-9-]+(\/activate)?\/?$/,
   /^\/api\/audit-summary\/[a-z0-9-]+$/,
   /^\/api\/checkout-config$/,
+  /^\/api\/track$/,
   /^\/tailwind\.css$/,
   /^\/fonts\/[\w.-]+$/,
 ];
@@ -67,11 +71,13 @@ app.get('/api/config', (_req, res) => {
     agencyUrl: config.agencyUrl,
     spacingOptions: SPACING_OPTIONS,
     offer: resolvedOffer(),
+    offerTest: config.offer.test,
+    offerVariants: { a: config.offer.variants.a.label, b: config.offer.variants.b.label },
     sender: resolvedSender(),
     niches: publicNiches(),
     defaultNiche: DEFAULT_NICHE,
     publicBaseUrl: config.publicBaseUrl,
-    stripeReady: Boolean(config.stripeCheckoutUrl),
+    stripeReady: Boolean(config.stripeCheckoutUrlA && config.stripeCheckoutUrl),
     maxCompetitors: MAX_COMPETITORS,
   });
 });
@@ -194,6 +200,8 @@ app.post('/api/candidates', async (req, res) => {
         ownerName,
         niche: getNiche(niche).key,
         sender: resolvedSender(),
+        keyword: scan.keyword,
+        spot: await locateSpot(pickCheckSpot(scan.points, (p) => findBusinessRank(p.results, scan.lead).rank)),
       }),
       candidateCount: candidates.length,
       weakPeer: !!weakPeer,
@@ -211,7 +219,7 @@ app.post('/api/candidates', async (req, res) => {
 
 /** Step 3 - approve the rivals and build the executive deliverable. */
 app.post('/api/generate', async (req, res) => {
-  const { scanId, competitors, scale, niche, ownerName } = req.body || {};
+  const { scanId, competitors, scale, niche, ownerName, variant } = req.body || {};
   const started = Date.now();
   try {
     const scan = await loadScan(scanId);
@@ -233,6 +241,9 @@ app.post('/api/generate', async (req, res) => {
     const result = await generateExecutive(scan, chosen, {
       niche,
       ownerName,
+      // 'a' or 'b' pins this audit to one version; anything else follows the
+      // A/B setting.
+      variant: ['a', 'b'].includes(variant) ? variant : null,
       scale: scale === 1 ? 1 : 2,
       competitorSource: chosen.every((c) => c.autoSelected) ? 'auto' : chosen.some((c) => c.autoSelected) ? 'mixed' : 'manual',
       onProgress: (m) => console.log(`[generate] ${m}`),
@@ -246,6 +257,7 @@ app.post('/api/generate', async (req, res) => {
     res.json({
       id: result.id,
       slug: result.slug,
+      variant: result.variant,
       elapsedMs: Date.now() - started,
       panelUrls: result.files.panels.map((f) => `/reports/${path.basename(f)}`),
       jsonUrl: `/reports/${path.basename(result.files.json)}`,
@@ -284,13 +296,30 @@ app.get('/api/audit-summary/:slug', async (req, res) => {
 app.get('/api/checkout-config', (_req, res) => {
   const sender = resolvedSender();
   res.json({
-    offer: resolvedOffer(),
+    // Both versions; the page shows the one saved with the audit.
+    offers: offerTemplates(),
     // The prospect sees the brand, not the admin's CAN-SPAM readiness flags.
     sender: { company: sender.company, name: sender.name, cityState: sender.cityState, postalAddress: sender.postalAddress, email: sender.email, phone: sender.phone },
     niches: publicNiches(),
     defaultNiche: DEFAULT_NICHE,
-    stripeCheckoutUrl: config.stripeCheckoutUrl || '',
+    stripe: { a: stripeUrlFor('a'), b: stripeUrlFor('b') },
   });
+});
+
+/**
+ * A/B tally from the checkout page: 'viewed' on open, 'clicked' on the start
+ * button. The version is read from the saved audit, never from the request.
+ */
+app.post('/api/track', async (req, res) => {
+  const { slug, event } = req.body || {};
+  if (!SLUG_RE.test(String(slug || '')) || !['viewed', 'clicked'].includes(event)) return res.status(204).end();
+  const summary = await loadAuditSummary(slug);
+  if (summary?.variant) await recordEvent(slug, summary.variant, event).catch(() => {});
+  res.status(204).end();
+});
+
+app.get('/api/abtest', async (_req, res) => {
+  res.json({ mode: config.offer.test, labels: { a: config.offer.variants.a.label, b: config.offer.variants.b.label }, stats: await abStats() });
 });
 
 app.post('/api/audit', async (req, res) => {
